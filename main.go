@@ -19,6 +19,13 @@ import (
 	"kkt-monitor/internal/web"
 )
 
+func boolLabel(v bool, yes, no string) string {
+	if v {
+		return yes
+	}
+	return no
+}
+
 func main() {
 	cfg := config.Load()
 	if cfg.AdminPassword == "" {
@@ -26,6 +33,11 @@ func main() {
 	}
 	if cfg.ViewerPassword != "" && cfg.ViewerPassword == cfg.AdminPassword {
 		log.Fatal("VIEWER_PASSWORD совпадает с ADMIN_PASSWORD: задайте разные пароли или оставьте VIEWER_PASSWORD пустым")
+	}
+	log.Printf("конфигурация: адрес=%s, база=%s, COOKIE_SECURE=%v, VIEWER_PASSWORD %s",
+		cfg.ListenAddr, cfg.DBPath, cfg.CookieSecure, boolLabel(cfg.ViewerPassword != "", "задан", "не задан"))
+	if cfg.CookieSecure {
+		log.Println("ВНИМАНИЕ: COOKIE_SECURE=true — вход сработает, только если сервис открыт по HTTPS. Если это обычный http://, поставьте COOKIE_SECURE=false, иначе после ввода пароля вас будет возвращать обратно на страницу входа.")
 	}
 
 	store, err := db.Open(cfg.DBPath)
