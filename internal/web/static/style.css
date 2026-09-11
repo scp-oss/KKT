@@ -38,7 +38,7 @@ body {
 }
 .topbar nav a:hover, .topbar nav a.active { color: var(--accent); }
 
-.container { max-width: 1500px; margin: 0 auto; padding: 24px; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
 
 .card {
 	background: var(--panel);
