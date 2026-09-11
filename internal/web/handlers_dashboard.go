@@ -2,12 +2,23 @@ package web
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	"kkt-monitor/internal/db"
 )
+
+// dashboardURL returns "/" or "/?q=..." so an action taken from a filtered
+// registry view (delete, edit) returns to that same filter instead of
+// resetting the search.
+func dashboardURL(query string) string {
+	if query == "" {
+		return "/"
+	}
+	return "/?" + url.Values{"q": {query}}.Encode()
+}
 
 type dateStatus struct {
 	Date     string
@@ -95,7 +106,7 @@ func (s *Server) handleDeleteKKT(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ошибка удаления", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, dashboardURL(r.FormValue("q")), http.StatusSeeOther)
 }
 
 func (s *Server) handleEditKKTForm(w http.ResponseWriter, r *http.Request) {
@@ -109,7 +120,7 @@ func (s *Server) handleEditKKTForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "запись не найдена", http.StatusNotFound)
 		return
 	}
-	s.render(w, "edit_kkt.html", map[string]any{"KKT": k})
+	s.render(w, "edit_kkt.html", map[string]any{"KKT": k, "Query": r.URL.Query().Get("q")})
 }
 
 func (s *Server) handleEditKKTSubmit(w http.ResponseWriter, r *http.Request) {
@@ -122,6 +133,7 @@ func (s *Server) handleEditKKTSubmit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	query := r.FormValue("q")
 
 	k := db.KKT{
 		ID:           id,
@@ -136,7 +148,7 @@ func (s *Server) handleEditKKTSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if k.SerialNumber == "" {
-		s.render(w, "edit_kkt.html", map[string]any{"KKT": k, "Error": "Заводской номер ККТ обязателен"})
+		s.render(w, "edit_kkt.html", map[string]any{"KKT": k, "Query": query, "Error": "Заводской номер ККТ обязателен"})
 		return
 	}
 	for _, d := range []struct{ label, value string }{{"Дата окончания услуг (ОФД)", k.OFDEndDate}, {"Дата окончания срока ФН", k.FNEndDate}} {
@@ -144,7 +156,7 @@ func (s *Server) handleEditKKTSubmit(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if _, err := time.Parse("2006-01-02", d.value); err != nil {
-			s.render(w, "edit_kkt.html", map[string]any{"KKT": k, "Error": d.label + ": неверный формат даты"})
+			s.render(w, "edit_kkt.html", map[string]any{"KKT": k, "Query": query, "Error": d.label + ": неверный формат даты"})
 			return
 		}
 	}
@@ -154,8 +166,8 @@ func (s *Server) handleEditKKTSubmit(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
 			msg = "ККТ с таким заводским номером уже есть в реестре"
 		}
-		s.render(w, "edit_kkt.html", map[string]any{"KKT": k, "Error": msg})
+		s.render(w, "edit_kkt.html", map[string]any{"KKT": k, "Query": query, "Error": msg})
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, dashboardURL(query), http.StatusSeeOther)
 }

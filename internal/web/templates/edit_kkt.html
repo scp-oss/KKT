@@ -24,6 +24,7 @@
 		{{if .Error}}<div class="alert error">{{.Error}}</div>{{end}}
 
 		<form method="post" action="/kkt/{{.KKT.ID}}/edit">
+			<input type="hidden" name="q" value="{{.Query}}">
 			<div class="grid-2">
 				<div>
 					<label for="organization">Организация</label>
@@ -64,7 +65,7 @@
 			</div>
 
 			<button class="btn" type="submit">Сохранить</button>
-			<a class="btn secondary" href="/">Отмена</a>
+			<a class="btn secondary" href="/?q={{.Query}}">Отмена</a>
 		</form>
 	</div>
 </div>
