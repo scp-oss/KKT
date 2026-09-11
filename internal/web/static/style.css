@@ -38,7 +38,17 @@ body {
 }
 .topbar nav a:hover, .topbar nav a.active { color: var(--accent); }
 
-.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+/* Elastic width instead of a fixed max-width: never narrower than the old
+   1100px (so nothing regresses on a typical 1366-1440px laptop screen), but
+   grows toward ~20% side margins on bigger monitors so wide tables get real
+   extra room instead of always needing a horizontal scroll, capped so it
+   doesn't stretch absurdly wide on an ultrawide. Below ~1300px there isn't
+   room for both the 1100px floor and comfortable margins, so it switches to
+   a plain percentage - which also covers tablets/phones down the same rule. */
+.container { width: clamp(1100px, 80%, 1800px); margin: 0 auto; padding: 24px 0; }
+@media (max-width: 1300px) {
+	.container { width: 92%; }
+}
 
 .card {
 	background: var(--panel);
