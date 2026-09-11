@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Загрузка CSV — Мониторинг ККТ</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="topbar">
+	<h1>Мониторинг ККТ</h1>
+	<nav>
+		<a href="/">Реестр</a>
+		<a href="/upload" class="active">Загрузка CSV</a>
+		<a href="/settings">Настройки</a>
+		<form class="inline" method="post" action="/logout"><a href="#" onclick="this.closest('form').submit();return false;">Выход</a></form>
+	</nav>
+</div>
+<div class="container">
+	<div class="card">
+		<h2>Загрузка файла CSV</h2>
+		<p class="hint">Файл экспорта «Мониторинг ККТ и ФН» (разделитель «;»). Запись определяется уникальным полем «Заводской номер ККТ» — при повторной загрузке существующие записи обновляются, новые добавляются.</p>
+
+		{{if .Success}}<div class="alert success">{{.Success}}</div>{{end}}
+		{{if .Error}}<div class="alert error">{{.Error}}</div>{{end}}
+		{{if .Errors}}
+		<div class="alert error">
+			<div>Замечания при импорте:</div>
+			<ul class="errlist">{{range .Errors}}<li>{{.}}</li>{{end}}</ul>
+		</div>
+		{{end}}
+
+		<form method="post" action="/upload" enctype="multipart/form-data">
+			<label for="file">CSV-файл</label>
+			<input type="file" id="file" name="file" accept=".csv,text/csv" required>
+			<button class="btn" type="submit">Загрузить</button>
+		</form>
+	</div>
+</div>
+</body>
+</html>

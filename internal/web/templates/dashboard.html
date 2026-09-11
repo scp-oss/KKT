@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мониторинг ККТ</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="topbar">
+	<h1>Мониторинг ККТ</h1>
+	<nav>
+		<a href="/" class="active">Реестр</a>
+		<a href="/upload">Загрузка CSV</a>
+		<a href="/settings">Настройки</a>
+		<form class="inline" method="post" action="/logout"><a href="#" onclick="this.closest('form').submit();return false;">Выход</a></form>
+	</nav>
+</div>
+<div class="container">
+	<div class="stats">
+		<div class="stat"><div class="num">{{.Total}}</div><div class="label">Всего ККТ</div></div>
+		<div class="stat"><div class="num">{{.ExpiringSoon}}</div><div class="label">Требуют внимания (≤30 дней)</div></div>
+	</div>
+
+	<div class="card">
+		<h2>Реестр ККТ</h2>
+		{{if .Rows}}
+		<table>
+			<thead>
+			<tr>
+				<th>Модель</th>
+				<th>Рег. номер ККТ</th>
+				<th>Зав. номер ККТ</th>
+				<th>Зав. номер ФН</th>
+				<th>Адрес расчетов</th>
+				<th>Оконч. услуг (ОФД)</th>
+				<th>Оконч. срока ФН</th>
+				<th></th>
+			</tr>
+			</thead>
+			<tbody>
+			{{range .Rows}}
+			<tr>
+				<td>{{.Model}}</td>
+				<td>{{.RegNumber}}</td>
+				<td>{{.SerialNumber}}</td>
+				<td>{{.FNNumber}}</td>
+				<td>{{.Address}}</td>
+				<td>
+					{{if .OFD.Date}}
+						{{.OFD.Date}}
+						<div><span class="badge {{.OFD.Class}}">{{if lt .OFD.DaysLeft 0}}просрочено{{else}}{{.OFD.DaysLeft}} дн.{{end}}</span></div>
+					{{else}}<span class="badge none">нет данных</span>{{end}}
+				</td>
+				<td>
+					{{if .FN.Date}}
+						{{.FN.Date}}
+						<div><span class="badge {{.FN.Class}}">{{if lt .FN.DaysLeft 0}}просрочено{{else}}{{.FN.DaysLeft}} дн.{{end}}</span></div>
+					{{else}}<span class="badge none">нет данных</span>{{end}}
+				</td>
+				<td>
+					<form class="inline" method="post" action="/kkt/{{.ID}}/delete" onsubmit="return confirm('Удалить запись {{.SerialNumber}}?');">
+						<button class="btn danger small" type="submit">Удалить</button>
+					</form>
+				</td>
+			</tr>
+			{{end}}
+			</tbody>
+		</table>
+		{{else}}
+		<p class="hint">Пока нет данных. <a href="/upload">Загрузите CSV-файл</a>, чтобы начать.</p>
+		{{end}}
+	</div>
+</div>
+</body>
+</html>

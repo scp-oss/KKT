@@ -1,0 +1,79 @@
+// Package db wraps the SQLite storage layer for the KKT monitor.
+package db
+
+import (
+	"database/sql"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	_ "modernc.org/sqlite"
+)
+
+type DB struct {
+	*sql.DB
+}
+
+const schema = `
+CREATE TABLE IF NOT EXISTS kkt (
+	id            INTEGER PRIMARY KEY AUTOINCREMENT,
+	serial_number TEXT NOT NULL UNIQUE,
+	reg_number    TEXT NOT NULL DEFAULT '',
+	fn_number     TEXT NOT NULL DEFAULT '',
+	address       TEXT NOT NULL DEFAULT '',
+	model         TEXT NOT NULL DEFAULT '',
+	ofd_end_date  TEXT NOT NULL DEFAULT '',
+	fn_end_date   TEXT NOT NULL DEFAULT '',
+	created_at    TEXT NOT NULL,
+	updated_at    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+	key   TEXT PRIMARY KEY,
+	value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS recipients (
+	id         INTEGER PRIMARY KEY AUTOINCREMENT,
+	chat_id    TEXT NOT NULL,
+	name       TEXT NOT NULL DEFAULT '',
+	enabled    INTEGER NOT NULL DEFAULT 1,
+	created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+	token      TEXT PRIMARY KEY,
+	expires_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS notification_log (
+	id             INTEGER PRIMARY KEY AUTOINCREMENT,
+	kkt_id         INTEGER NOT NULL,
+	field          TEXT NOT NULL,
+	threshold_days INTEGER NOT NULL,
+	end_date       TEXT NOT NULL,
+	sent_at        TEXT NOT NULL,
+	UNIQUE(kkt_id, field, threshold_days, end_date)
+);
+`
+
+// Open opens (creating if needed) the SQLite database at path and applies the schema.
+func Open(path string) (*DB, error) {
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, fmt.Errorf("create db dir: %w", err)
+		}
+	}
+	sqlDB, err := sql.Open("sqlite", path+"?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)")
+	if err != nil {
+		return nil, fmt.Errorf("open sqlite: %w", err)
+	}
+	// SQLite only supports a single writer; keep this simple and serialized.
+	sqlDB.SetMaxOpenConns(1)
+
+	if _, err := sqlDB.Exec(schema); err != nil {
+		sqlDB.Close()
+		return nil, fmt.Errorf("apply schema: %w", err)
+	}
+	return &DB{sqlDB}, nil
+}

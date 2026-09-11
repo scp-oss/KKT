@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Настройки — Мониторинг ККТ</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="topbar">
+	<h1>Мониторинг ККТ</h1>
+	<nav>
+		<a href="/">Реестр</a>
+		<a href="/upload">Загрузка CSV</a>
+		<a href="/settings" class="active">Настройки</a>
+		<form class="inline" method="post" action="/logout"><a href="#" onclick="this.closest('form').submit();return false;">Выход</a></form>
+	</nav>
+</div>
+<div class="container">
+	{{if .Success}}<div class="alert success">{{.Success}}</div>{{end}}
+	{{if .Error}}<div class="alert error">{{.Error}}</div>{{end}}
+
+	<div class="card">
+		<h2>Telegram-бот</h2>
+		<p class="hint">
+			Уведомления отправляются автоматически за
+			{{range $i, $d := .Thresholds}}{{if $i}}, {{end}}{{$d}}{{end}}
+			дн. до окончания срока ФН и окончания оказания услуг (ОФД).
+			Секретные поля (токен, ключ, адрес, пароль) не отображаются повторно —
+			оставьте поле пустым, чтобы сохранить текущее значение.
+		</p>
+		<form method="post" action="/settings/bot">
+			<label>Способ отправки</label>
+			<label style="display:inline-block;margin-right:16px;font-size:14px;color:var(--text)">
+				<input type="radio" name="mode" value="direct" {{if eq .Mode "direct"}}checked{{end}}> Напрямую (api.telegram.org)
+			</label>
+			<label style="display:inline-block;font-size:14px;color:var(--text)">
+				<input type="radio" name="mode" value="custom" {{if eq .Mode "custom"}}checked{{end}}> Через свой relay/прокси-адрес
+			</label>
+
+			<label for="token">Токен бота {{if .TokenSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+			<input type="password" id="token" name="token" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
+
+			<label for="custom_url">Шаблон адреса (только для «через relay»), например
+				<code>https://example.tld/bot{TOKEN}/sendMessage?auth={AUTH_KEY}</code>
+				{{if .CustomURLSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}
+			</label>
+			<input type="password" id="custom_url" name="custom_url" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
+
+			<label for="auth_key">Ключ авторизации (auth_key) {{if .AuthKeySet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+			<input type="password" id="auth_key" name="auth_key" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
+
+			<label>
+				<input type="checkbox" name="socks5_enabled" {{if .Socks5Enabled}}checked{{end}}> Отправлять через SOCKS5-прокси
+			</label>
+
+			<label for="socks5_addr">Адрес SOCKS5 (host:port)</label>
+			<input type="text" id="socks5_addr" name="socks5_addr" value="{{.Socks5Addr}}" placeholder="127.0.0.1:1080">
+
+			<label for="socks5_user">Логин SOCKS5 {{if .Socks5UserSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+			<input type="password" id="socks5_user" name="socks5_user" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
+
+			<label for="socks5_pass">Пароль SOCKS5 {{if .Socks5PassSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+			<input type="password" id="socks5_pass" name="socks5_pass" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
+
+			<button class="btn" type="submit">Сохранить настройки бота</button>
+		</form>
+		<form method="post" action="/settings/test" style="margin-top:6px">
+			<button class="btn secondary" type="submit">Отправить тестовое сообщение</button>
+		</form>
+	</div>
+
+	<div class="card">
+		<h2>Получатели уведомлений</h2>
+		{{if .Recipients}}
+		<table>
+			<thead><tr><th>Chat ID</th><th>Имя</th><th>Статус</th><th></th></tr></thead>
+			<tbody>
+			{{range .Recipients}}
+			<tr>
+				<td>{{.ChatID}}</td>
+				<td>{{.Name}}</td>
+				<td>{{if .Enabled}}<span class="badge ok">активен</span>{{else}}<span class="badge none">отключен</span>{{end}}</td>
+				<td>
+					<form class="inline" method="post" action="/settings/recipients/{{.ID}}/toggle">
+						<button class="btn secondary small" type="submit">{{if .Enabled}}Отключить{{else}}Включить{{end}}</button>
+					</form>
+					<form class="inline" method="post" action="/settings/recipients/{{.ID}}/delete" onsubmit="return confirm('Удалить получателя?');">
+						<button class="btn danger small" type="submit">Удалить</button>
+					</form>
+				</td>
+			</tr>
+			{{end}}
+			</tbody>
+		</table>
+		{{else}}
+		<p class="hint">Получатели ещё не добавлены.</p>
+		{{end}}
+
+		<form method="post" action="/settings/recipients/add">
+			<label for="chat_id">Chat ID</label>
+			<input type="text" id="chat_id" name="chat_id" placeholder="например, 123456789" required>
+			<label for="name">Имя (необязательно)</label>
+			<input type="text" id="name" name="name" placeholder="например, Бухгалтер">
+			<button class="btn" type="submit">Добавить получателя</button>
+		</form>
+	</div>
+</div>
+</body>
+</html>

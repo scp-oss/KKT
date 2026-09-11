@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Вход — Мониторинг ККТ</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="login-wrap">
+	<div class="card login-card">
+		<h2>Мониторинг ККТ</h2>
+		{{if .Error}}<div class="alert error">Неверный пароль</div>{{end}}
+		<form method="post" action="/login">
+			<label for="password">Пароль</label>
+			<input type="password" id="password" name="password" autofocus required>
+			<button class="btn" type="submit" style="width:100%">Войти</button>
+		</form>
+	</div>
+</div>
+</body>
+</html>
