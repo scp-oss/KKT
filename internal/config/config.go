@@ -14,8 +14,12 @@ type Config struct {
 	// AdminPassword is the plaintext password used to log into the web UI.
 	// It is hashed in memory on startup and never stored in plaintext.
 	AdminPassword string
-	// CookieSecure controls the Secure flag on session cookies. Disable
-	// only when serving over plain HTTP (e.g. local testing).
+	// CookieSecure controls the Secure flag on session cookies. Browsers
+	// silently drop a Secure cookie on a plain HTTP connection, which would
+	// make login look like it "does nothing" (the session cookie never
+	// sticks, so every request bounces back to /login) - so this defaults
+	// to false and must be explicitly enabled once the service is actually
+	// served over HTTPS (directly or behind a TLS-terminating proxy).
 	CookieSecure bool
 }
 
@@ -32,7 +36,7 @@ func Load() Config {
 		ListenAddr:    listenAddr,
 		DBPath:        getEnv("DB_PATH", "data/kkt.db"),
 		AdminPassword: getEnv("ADMIN_PASSWORD", ""),
-		CookieSecure:  getEnvBool("COOKIE_SECURE", true),
+		CookieSecure:  getEnvBool("COOKIE_SECURE", false),
 	}
 	return cfg
 }
