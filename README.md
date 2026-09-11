@@ -81,16 +81,27 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Данные (SQLite) сохраняются в volume `kkt-data`, переживают пересборку контейнера.
+Данные (SQLite, файл `kkt.db`) сохраняются в папке `./data` рядом с проектом
+(смонтирована в контейнер как `/data`) — переживают пересборку и пересоздание
+контейнера, видны и бэкапятся прямо с хоста.
+
+Процесс в контейнере работает от пользователя с uid `10001` (не root), поэтому
+папке `./data` на хосте нужны права на запись для этого uid:
+
+```bash
+mkdir -p data
+sudo chown -R 10001:10001 data
+```
 
 Либо без compose:
 
 ```bash
 docker build -t kkt-monitor .
+mkdir -p data && sudo chown -R 10001:10001 data
 docker run -d --name kkt-monitor \
   -p 8080:8080 \
   -e ADMIN_PASSWORD=change-me \
-  -v kkt-data:/data \
+  -v "$(pwd)/data:/data" \
   kkt-monitor
 ```
 

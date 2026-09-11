@@ -12,7 +12,4 @@ services:
       # Set to "false" only if you serve this behind plain HTTP without TLS.
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
     volumes:
-      - kkt-data:/data
-
-volumes:
-  kkt-data:
+      - ./data:/data
