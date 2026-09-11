@@ -49,12 +49,12 @@
 			<tbody>
 			{{range .Rows}}
 			<tr>
-				<td>{{.Organization}}</td>
-				<td>{{.Model}}</td>
+				<td class="truncate" title="{{.Organization}}">{{.Organization}}</td>
+				<td class="truncate" title="{{.Model}}">{{.Model}}</td>
 				<td>{{.RegNumber}}</td>
 				<td>{{.SerialNumber}}</td>
 				<td>{{.FNNumber}}</td>
-				<td>{{.Address}}</td>
+				<td class="truncate wide" title="{{.Address}}">{{.Address}}</td>
 				<td>
 					{{if .OFD.Date}}
 						{{.OFD.Date}}

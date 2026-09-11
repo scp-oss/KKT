@@ -78,6 +78,19 @@ th:first-child, td:first-child {
 }
 tbody tr:hover td:first-child { background: #212f45; }
 
+/* The free-text columns (organization, model, address) are the ones whose
+   length varies wildly and can't be predicted - cap them and truncate with
+   an ellipsis (full value on hover via the title attribute) so a long one
+   doesn't stretch the whole table. Serial numbers/dates stay their natural
+   width: they're fixed-length identifiers, so there's nothing to gain by
+   capping them and truncating one would defeat the point of showing it. */
+.truncate {
+	max-width: 200px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.truncate.wide { max-width: 260px; }
+
 .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 .badge.ok { background: rgba(34,197,94,.15); color: var(--ok); }
 .badge.warn { background: rgba(245,158,11,.15); color: var(--warn); }
