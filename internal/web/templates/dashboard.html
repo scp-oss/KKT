@@ -11,8 +11,10 @@
 	<h1>Мониторинг ККТ</h1>
 	<nav>
 		<a href="/" class="active">Реестр</a>
+		{{if .IsAdmin}}
 		<a href="/upload">Загрузка CSV</a>
 		<a href="/settings">Настройки</a>
+		{{end}}
 		<form class="inline" method="post" action="/logout"><a href="#" onclick="this.closest('form').submit();return false;">Выход</a></form>
 	</nav>
 </div>
@@ -41,7 +43,7 @@
 				<th>Адрес расчетов</th>
 				<th>Оконч. услуг (ОФД)</th>
 				<th>Оконч. срока ФН</th>
-				<th></th>
+				{{if $.IsAdmin}}<th></th>{{end}}
 			</tr>
 			</thead>
 			<tbody>
@@ -65,19 +67,23 @@
 						<div><span class="badge {{.FN.Class}}">{{if lt .FN.DaysLeft 0}}просрочено{{else}}{{.FN.DaysLeft}} дн.{{end}}</span></div>
 					{{else}}<span class="badge none">нет данных</span>{{end}}
 				</td>
+				{{if $.IsAdmin}}
 				<td>
 					<form class="inline" method="post" action="/kkt/{{.ID}}/delete" onsubmit="return confirm('Удалить запись {{.SerialNumber}}?');">
 						<button class="btn danger small" type="submit">Удалить</button>
 					</form>
 				</td>
+				{{end}}
 			</tr>
 			{{end}}
 			</tbody>
 		</table>
 		{{else if .Query}}
 		<p class="hint">Ничего не найдено по запросу «{{.Query}}».</p>
-		{{else}}
+		{{else if .IsAdmin}}
 		<p class="hint">Пока нет данных. <a href="/upload">Загрузите CSV-файл</a>, чтобы начать.</p>
+		{{else}}
+		<p class="hint">Пока нет данных.</p>
 		{{end}}
 	</div>
 </div>

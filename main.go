@@ -24,6 +24,9 @@ func main() {
 	if cfg.AdminPassword == "" {
 		log.Fatal("ADMIN_PASSWORD не задан: установите переменную окружения с паролем для входа в веб-интерфейс")
 	}
+	if cfg.ViewerPassword != "" && cfg.ViewerPassword == cfg.AdminPassword {
+		log.Fatal("VIEWER_PASSWORD совпадает с ADMIN_PASSWORD: задайте разные пароли или оставьте VIEWER_PASSWORD пустым")
+	}
 
 	store, err := db.Open(cfg.DBPath)
 	if err != nil {

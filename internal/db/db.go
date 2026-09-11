@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS recipients (
 
 CREATE TABLE IF NOT EXISTS sessions (
 	token      TEXT PRIMARY KEY,
+	role       TEXT NOT NULL DEFAULT 'admin',
 	expires_at TEXT NOT NULL
 );
 
@@ -86,11 +87,21 @@ func Open(path string) (*DB, error) {
 // migrate adds columns introduced after the initial schema to databases
 // created by older versions of this program.
 func migrate(sqlDB *sql.DB) error {
-	rows, err := sqlDB.Query(`PRAGMA table_info(kkt)`)
+	if err := addColumnIfMissing(sqlDB, "kkt", "organization", `ALTER TABLE kkt ADD COLUMN organization TEXT NOT NULL DEFAULT ''`); err != nil {
+		return err
+	}
+	if err := addColumnIfMissing(sqlDB, "sessions", "role", `ALTER TABLE sessions ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'`); err != nil {
+		return err
+	}
+	return nil
+}
+
+func addColumnIfMissing(sqlDB *sql.DB, table, column, alterSQL string) error {
+	rows, err := sqlDB.Query(`PRAGMA table_info(` + table + `)`)
 	if err != nil {
 		return err
 	}
-	hasOrganization := false
+	found := false
 	for rows.Next() {
 		var cid int
 		var name, colType string
@@ -100,8 +111,8 @@ func migrate(sqlDB *sql.DB) error {
 			rows.Close()
 			return err
 		}
-		if name == "organization" {
-			hasOrganization = true
+		if name == column {
+			found = true
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -109,8 +120,8 @@ func migrate(sqlDB *sql.DB) error {
 	}
 	rows.Close()
 
-	if !hasOrganization {
-		if _, err := sqlDB.Exec(`ALTER TABLE kkt ADD COLUMN organization TEXT NOT NULL DEFAULT ''`); err != nil {
+	if !found {
+		if _, err := sqlDB.Exec(alterSQL); err != nil {
 			return err
 		}
 	}

@@ -6,7 +6,7 @@ import (
 )
 
 func (s *Server) handleLoginForm(w http.ResponseWriter, r *http.Request) {
-	if s.isAuthenticated(r) {
+	if _, ok := s.sessionRole(r); ok {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
@@ -22,14 +22,15 @@ func (s *Server) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	password := r.FormValue("password")
 
-	if !s.checkPassword(password) {
+	role, ok := s.checkCredentials(password)
+	if !ok {
 		// small delay to blunt brute-force attempts
 		time.Sleep(500 * time.Millisecond)
 		http.Redirect(w, r, "/login?error=1", http.StatusSeeOther)
 		return
 	}
 
-	if err := s.startSession(w, r); err != nil {
+	if err := s.startSession(w, r, role); err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
