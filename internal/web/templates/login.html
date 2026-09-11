@@ -5,11 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Вход — Мониторинг ККТ</title>
 <link rel="stylesheet" href="/static/style.css">
+{{template "head-icons" .}}
 </head>
 <body>
 <div class="login-wrap">
 	<div class="card login-card">
-		<h2>Мониторинг ККТ</h2>
+		<div class="brand brand-center">{{template "brand-icon" .}}<h2>Мониторинг ККТ</h2></div>
 		{{if .Error}}<div class="alert error">Неверный пароль</div>{{end}}
 		<form method="post" action="/login">
 			<label for="password">Пароль</label>

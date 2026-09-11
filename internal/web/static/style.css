@@ -30,6 +30,11 @@ body {
 
 .topbar h1 { font-size: 18px; margin: 0; }
 
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-icon { width: 24px; height: 24px; flex: none; color: var(--accent); }
+.brand-center { justify-content: center; margin-bottom: 6px; }
+.brand-center .brand-icon { width: 22px; height: 22px; }
+
 .topbar nav a {
 	color: var(--muted);
 	text-decoration: none;

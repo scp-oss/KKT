@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Настройки — Мониторинг ККТ</title>
 <link rel="stylesheet" href="/static/style.css">
+{{template "head-icons" .}}
 </head>
 <body>
 <div class="topbar">
-	<h1>Мониторинг ККТ</h1>
+	<div class="brand">{{template "brand-icon" .}}<h1>Мониторинг ККТ</h1></div>
 	<nav>
 		<a href="/">Реестр</a>
 		<a href="/settings" class="active">Настройки</a>
