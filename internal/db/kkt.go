@@ -67,12 +67,14 @@ func (d *DB) UpsertKKT(k KKT) (id int64, inserted bool, err error) {
 	}
 }
 
-// ListKKT returns every record ordered by the earliest of its two expiry
-// dates (ОФД service end date, ФН end date) first; records with neither date
-// set sort last.
+// ListKKT returns every record ordered with the most urgent first: a record
+// with no ОФД end date has no active subscription at all, which ranks above
+// even an already-expired one; the rest are ordered by whichever of the two
+// expiry dates comes soonest.
 func (d *DB) ListKKT() ([]KKT, error) {
 	rows, err := d.Query(`SELECT id, serial_number, organization, reg_number, fn_number, address, model, ofd_end_date, fn_end_date, created_at, updated_at
 		FROM kkt ORDER BY
+		CASE WHEN ofd_end_date = '' THEN 0 ELSE 1 END ASC,
 		MIN(
 			CASE WHEN ofd_end_date = '' THEN '9999-12-31' ELSE ofd_end_date END,
 			CASE WHEN fn_end_date = '' THEN '9999-12-31' ELSE fn_end_date END

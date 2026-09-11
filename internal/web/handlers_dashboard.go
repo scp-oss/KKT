@@ -65,6 +65,11 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 		total++
 		row := kktRow{KKT: k, OFD: computeStatus(k.OFDEndDate, today), FN: computeStatus(k.FNEndDate, today)}
+		if k.OFDEndDate == "" {
+			// No ОФД end date at all means no subscription was ever bought -
+			// that's more urgent than an expiry date, however close.
+			row.OFD.Class = "danger"
+		}
 		if row.OFD.Class == "danger" || row.OFD.Class == "warn" || row.FN.Class == "danger" || row.FN.Class == "warn" {
 			expiringSoon++
 		}

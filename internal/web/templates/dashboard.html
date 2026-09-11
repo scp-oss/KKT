@@ -59,7 +59,7 @@
 					{{if .OFD.Date}}
 						{{.OFD.Date}}
 						<div><span class="badge {{.OFD.Class}}">{{if lt .OFD.DaysLeft 0}}просрочено{{else}}{{.OFD.DaysLeft}} дн.{{end}}</span></div>
-					{{else}}<span class="badge none">нет данных</span>{{end}}
+					{{else}}<span class="badge danger">Не активирована</span>{{end}}
 				</td>
 				<td class="nowrap">
 					{{if .FN.Date}}

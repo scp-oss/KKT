@@ -65,3 +65,37 @@ func TestUpsertKKTDoesNotBlankExistingFields(t *testing.T) {
 		t.Errorf("FNEndDate = %q, want the new non-blank value to have been applied", rec.FNEndDate)
 	}
 }
+
+func TestListKKTOrdersUnactivatedFirst(t *testing.T) {
+	store := newTestDB(t)
+
+	// Expires very soon - would normally sort first under a plain
+	// earliest-date ordering.
+	if _, _, err := store.UpsertKKT(KKT{SerialNumber: "SOON", OFDEndDate: "2027-01-01", FNEndDate: "2027-01-01"}); err != nil {
+		t.Fatalf("upsert SOON: %v", err)
+	}
+	// No ОФД subscription at all - must outrank SOON regardless.
+	if _, _, err := store.UpsertKKT(KKT{SerialNumber: "UNACTIVATED", OFDEndDate: "", FNEndDate: "2027-12-31"}); err != nil {
+		t.Fatalf("upsert UNACTIVATED: %v", err)
+	}
+	// Expires much later - should sort last.
+	if _, _, err := store.UpsertKKT(KKT{SerialNumber: "LATER", OFDEndDate: "2028-01-01", FNEndDate: "2028-01-01"}); err != nil {
+		t.Fatalf("upsert LATER: %v", err)
+	}
+
+	records, err := store.ListKKT()
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(records) != 3 {
+		t.Fatalf("expected 3 records, got %d", len(records))
+	}
+	got := []string{records[0].SerialNumber, records[1].SerialNumber, records[2].SerialNumber}
+	want := []string{"UNACTIVATED", "SOON", "LATER"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("order = %v, want %v", got, want)
+			break
+		}
+	}
+}
