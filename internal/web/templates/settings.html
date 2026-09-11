@@ -118,11 +118,11 @@
 			<tbody>
 			{{range .Recipients}}
 			<tr>
-				<td class="nowrap">{{.ChatID}}</td>
+				<td>{{.ChatID}}</td>
 				<td>{{.Name}}</td>
 				<td>{{if .Organization}}{{.Organization}}{{else}}Все организации{{end}}</td>
 				<td>{{if .Enabled}}<span class="badge ok">активен</span>{{else}}<span class="badge none">отключен</span>{{end}}</td>
-				<td class="nowrap">
+				<td>
 					<form class="inline" method="post" action="/settings/recipients/{{.ID}}/toggle">
 						<button class="btn secondary small" type="submit">{{if .Enabled}}Отключить{{else}}Включить{{end}}</button>
 					</form>
