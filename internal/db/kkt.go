@@ -20,6 +20,12 @@ type KKT struct {
 
 // UpsertKKT inserts a new record or updates the existing one matched by SerialNumber.
 // It returns the record id and whether a new row was inserted.
+//
+// On update, a blank field in k never clobbers an already-stored value (e.g.
+// the address manually fixed via the edit form, or a field the source CSV
+// happens to be missing for this row) - only non-empty fields overwrite.
+// Organization is the exception: the upload form always requires it, so it
+// always overwrites.
 func (d *DB) UpsertKKT(k KKT) (id int64, inserted bool, err error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 
@@ -27,8 +33,24 @@ func (d *DB) UpsertKKT(k KKT) (id int64, inserted bool, err error) {
 	err = d.QueryRow(`SELECT id FROM kkt WHERE serial_number = ?`, k.SerialNumber).Scan(&existingID)
 	switch err {
 	case nil:
-		_, err = d.Exec(`UPDATE kkt SET organization=?, reg_number=?, fn_number=?, address=?, model=?, ofd_end_date=?, fn_end_date=?, updated_at=? WHERE id=?`,
-			k.Organization, k.RegNumber, k.FNNumber, k.Address, k.Model, k.OFDEndDate, k.FNEndDate, now, existingID)
+		_, err = d.Exec(`UPDATE kkt SET
+				organization=?,
+				reg_number=CASE WHEN ?='' THEN reg_number ELSE ? END,
+				fn_number=CASE WHEN ?='' THEN fn_number ELSE ? END,
+				address=CASE WHEN ?='' THEN address ELSE ? END,
+				model=CASE WHEN ?='' THEN model ELSE ? END,
+				ofd_end_date=CASE WHEN ?='' THEN ofd_end_date ELSE ? END,
+				fn_end_date=CASE WHEN ?='' THEN fn_end_date ELSE ? END,
+				updated_at=?
+			WHERE id=?`,
+			k.Organization,
+			k.RegNumber, k.RegNumber,
+			k.FNNumber, k.FNNumber,
+			k.Address, k.Address,
+			k.Model, k.Model,
+			k.OFDEndDate, k.OFDEndDate,
+			k.FNEndDate, k.FNEndDate,
+			now, existingID)
 		if err != nil {
 			return 0, false, err
 		}
