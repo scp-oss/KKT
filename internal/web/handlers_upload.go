@@ -18,14 +18,20 @@ func (s *Server) handleUploadSubmit(w http.ResponseWriter, r *http.Request) {
 		s.render(w, "upload.html", map[string]any{"Error": "Не удалось прочитать форму: " + err.Error()})
 		return
 	}
+	organization := r.FormValue("organization")
+	if organization == "" {
+		s.render(w, "upload.html", map[string]any{"Error": "Укажите название организации, которой принадлежит файл"})
+		return
+	}
+
 	file, _, err := r.FormFile("file")
 	if err != nil {
-		s.render(w, "upload.html", map[string]any{"Error": "Выберите CSV-файл для загрузки"})
+		s.render(w, "upload.html", map[string]any{"Error": "Выберите CSV-файл для загрузки", "Organization": organization})
 		return
 	}
 	defer file.Close()
 
-	result, err := csvimport.Import(s.store, file)
+	result, err := csvimport.Import(s.store, file, organization)
 	if err != nil {
 		s.render(w, "upload.html", map[string]any{"Error": "Ошибка импорта: " + err.Error()})
 		return

@@ -31,6 +31,10 @@
 		{{end}}
 
 		<form method="post" action="/upload" enctype="multipart/form-data">
+			<label for="organization">Организация</label>
+			<input type="text" id="organization" name="organization" placeholder="например, ИП Пупкин И.В." value="{{.Organization}}" required>
+			<p class="hint">Один файл — одна организация. Все ККТ из этого файла будут отмечены этой организацией.</p>
+
 			<label for="file">CSV-файл</label>
 			<input type="file" id="file" name="file" accept=".csv,text/csv" required>
 			<button class="btn" type="submit">Загрузить</button>

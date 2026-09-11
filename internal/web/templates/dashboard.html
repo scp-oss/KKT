@@ -24,10 +24,16 @@
 
 	<div class="card">
 		<h2>Реестр ККТ</h2>
+		<form method="get" action="/" class="search">
+			<input type="text" name="q" value="{{.Query}}" placeholder="Поиск по организации или адресу установки">
+			<button class="btn secondary" type="submit">Найти</button>
+			{{if .Query}}<a class="btn secondary" href="/">Сбросить</a>{{end}}
+		</form>
 		{{if .Rows}}
 		<table>
 			<thead>
 			<tr>
+				<th>Организация</th>
 				<th>Модель</th>
 				<th>Рег. номер ККТ</th>
 				<th>Зав. номер ККТ</th>
@@ -41,6 +47,7 @@
 			<tbody>
 			{{range .Rows}}
 			<tr>
+				<td>{{.Organization}}</td>
 				<td>{{.Model}}</td>
 				<td>{{.RegNumber}}</td>
 				<td>{{.SerialNumber}}</td>
@@ -67,6 +74,8 @@
 			{{end}}
 			</tbody>
 		</table>
+		{{else if .Query}}
+		<p class="hint">Ничего не найдено по запросу «{{.Query}}».</p>
 		{{else}}
 		<p class="hint">Пока нет данных. <a href="/upload">Загрузите CSV-файл</a>, чтобы начать.</p>
 		{{end}}

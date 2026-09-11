@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"kkt-monitor/internal/db"
@@ -49,10 +50,20 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	needle := strings.ToLower(query)
+
 	today := time.Now().Truncate(24 * time.Hour)
 	rows := make([]kktRow, 0, len(records))
 	expiringSoon := 0
+	total := 0
 	for _, k := range records {
+		if needle != "" &&
+			!strings.Contains(strings.ToLower(k.Organization), needle) &&
+			!strings.Contains(strings.ToLower(k.Address), needle) {
+			continue
+		}
+		total++
 		row := kktRow{KKT: k, OFD: computeStatus(k.OFDEndDate, today), FN: computeStatus(k.FNEndDate, today)}
 		if row.OFD.Class == "danger" || row.OFD.Class == "warn" || row.FN.Class == "danger" || row.FN.Class == "warn" {
 			expiringSoon++
@@ -62,8 +73,9 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 
 	s.render(w, "dashboard.html", map[string]any{
 		"Rows":         rows,
-		"Total":        len(rows),
+		"Total":        total,
 		"ExpiringSoon": expiringSoon,
+		"Query":        query,
 	})
 }
 

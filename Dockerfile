@@ -14,7 +14,9 @@ RUN apk add --no-cache ca-certificates tzdata && \
 WORKDIR /app
 COPY --from=build /out/kkt-monitor /app/kkt-monitor
 
-ENV LISTEN_ADDR=:8080 \
+# PORT can be overridden at `docker run`/compose time (-e PORT=9090) to move
+# the service off 8080; just remember to publish the same port with -p.
+ENV PORT=8080 \
     DB_PATH=/data/kkt.db
 
 VOLUME ["/data"]

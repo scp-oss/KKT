@@ -20,8 +20,16 @@ type Config struct {
 }
 
 func Load() Config {
+	// LISTEN_ADDR (a full "host:port" string) takes precedence when set,
+	// e.g. to bind a specific interface. Otherwise the simpler PORT variable
+	// picks the port on all interfaces - handy for `docker run -e PORT=...`.
+	listenAddr := getEnv("LISTEN_ADDR", "")
+	if listenAddr == "" {
+		listenAddr = ":" + getEnv("PORT", "8080")
+	}
+
 	cfg := Config{
-		ListenAddr:    getEnv("LISTEN_ADDR", ":8080"),
+		ListenAddr:    listenAddr,
 		DBPath:        getEnv("DB_PATH", "data/kkt.db"),
 		AdminPassword: getEnv("ADMIN_PASSWORD", ""),
 		CookieSecure:  getEnvBool("COOKIE_SECURE", true),

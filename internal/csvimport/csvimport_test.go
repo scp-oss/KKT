@@ -28,7 +28,7 @@ func newTestDB(t *testing.T) *db.DB {
 func TestImport(t *testing.T) {
 	store := newTestDB(t)
 
-	res, err := Import(store, strings.NewReader(sample))
+	res, err := Import(store, strings.NewReader(sample), "ИП Пупкин И.В.")
 	if err != nil {
 		t.Fatalf("import: %v", err)
 	}
@@ -77,6 +77,9 @@ func TestImport(t *testing.T) {
 	if withOFD.Address != "г Пенза, ул Бийская, д. 7" {
 		t.Errorf("Address = %q", withOFD.Address)
 	}
+	if withOFD.Organization != "ИП Пупкин И.В." {
+		t.Errorf("Organization = %q, want ИП Пупкин И.В.", withOFD.Organization)
+	}
 
 	// empty source cell for the OFD end date column must stay empty, not error.
 	if withoutOFD.OFDEndDate != "" {
@@ -90,10 +93,10 @@ func TestImport(t *testing.T) {
 func TestImportUpsertsBySerialNumber(t *testing.T) {
 	store := newTestDB(t)
 
-	if _, err := Import(store, strings.NewReader(sample)); err != nil {
+	if _, err := Import(store, strings.NewReader(sample), "ИП Пупкин И.В."); err != nil {
 		t.Fatalf("first import: %v", err)
 	}
-	res, err := Import(store, strings.NewReader(sample))
+	res, err := Import(store, strings.NewReader(sample), "ИП Пупкин И.В.")
 	if err != nil {
 		t.Fatalf("second import: %v", err)
 	}
@@ -112,8 +115,44 @@ func TestImportUpsertsBySerialNumber(t *testing.T) {
 
 func TestImportMissingRequiredColumn(t *testing.T) {
 	store := newTestDB(t)
-	_, err := Import(store, strings.NewReader(`="Модель ККТ";="Адрес расчетов"`+"\r\n"+`="X";="Y"`))
+	_, err := Import(store, strings.NewReader(`="Модель ККТ";="Адрес расчетов"`+"\r\n"+`="X";="Y"`), "ИП Пупкин И.В.")
 	if err == nil {
 		t.Fatal("expected an error for a CSV missing required columns")
+	}
+}
+
+func TestNormalizeAddress(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{
+			"г Пенза, ул Бийская, д. 7",
+			"г Пенза, ул Бийская, д. 7",
+		},
+		{
+			"58 - Пензенская область, 440072, г Пенза,                   ул Антонова, стр 18В",
+			"г Пенза, ул Антонова, стр 18В",
+		},
+		{
+			"440528, Пензенская обл. с. Богословка, ул. Дорожная, д. 1",
+			"с. Богословка, ул. Дорожная, д. 1",
+		},
+		{
+			"58 - Пензенская область, г.о. город Пенза, 440007, гПенза, ул Измайлова, д. 58А, к.",
+			"г Пенза, ул Измайлова, д. 58А, к.",
+		},
+		{
+			"м.р-н Пензенский, с Засечное, ул Семейная, д. 12",
+			"с Засечное, ул Семейная, д. 12",
+		},
+		{
+			"440046, РОССИЯ, 58, город Пенза г.о., Пенза г.,Мираул.,д. 44А",
+			"г Пенза, Мираул.,д. 44А",
+		},
+		{"", ""},
+	}
+	for _, c := range cases {
+		got := normalizeAddress(c.in)
+		if got != c.want {
+			t.Errorf("normalizeAddress(%q) = %q, want %q", c.in, got, c.want)
+		}
 	}
 }

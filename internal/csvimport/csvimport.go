@@ -8,6 +8,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"time"
 
@@ -35,9 +36,12 @@ type Result struct {
 }
 
 // Import reads a CSV export from r and upserts every row into the database,
-// keyed on the unique "Заводской номер ККТ" (serial number) column.
-func Import(store *db.DB, r io.Reader) (Result, error) {
+// keyed on the unique "Заводской номер ККТ" (serial number) column. Every
+// record in the file is tagged with organization, since one file always
+// belongs to a single organization.
+func Import(store *db.DB, r io.Reader, organization string) (Result, error) {
 	var res Result
+	organization = strings.TrimSpace(organization)
 
 	reader := csv.NewReader(stripBOM(r))
 	reader.Comma = ';'
@@ -90,9 +94,10 @@ func Import(store *db.DB, r io.Reader) (Result, error) {
 
 		rec := db.KKT{
 			SerialNumber: serial,
+			Organization: organization,
 			RegNumber:    get(record, index, colRegNumber),
 			FNNumber:     get(record, index, colFNNumber),
-			Address:      get(record, index, colAddress),
+			Address:      normalizeAddress(get(record, index, colAddress)),
 			Model:        get(record, index, colModel),
 			OFDEndDate:   parseDate(get(record, index, colOFDEndDate)),
 			FNEndDate:    parseDate(get(record, index, colFNEndDate)),
@@ -160,6 +165,69 @@ func parseDate(s string) string {
 		}
 	}
 	return ""
+}
+
+// normalizeAddress strips the region/postal-code/administrative-district
+// cruft that the source export prefixes addresses with, leaving just the
+// settlement, street and house, e.g.:
+//
+//	58 - Пензенская область, 440072, г Пенза,     ул Антонова, стр 18В
+//	-> г Пенза, ул Антонова, стр 18В
+//
+//	440528, Пензенская обл. с. Богословка, ул. Дорожная, д. 1
+//	-> с. Богословка, ул. Дорожная, д. 1
+var (
+	reWhitespace   = regexp.MustCompile(`\s+`)
+	reLeadingCode  = regexp.MustCompile(`^\d+\s*-\s*`)
+	reCountry      = regexp.MustCompile(`(?i)россия,?\s*`)
+	rePostalCode   = regexp.MustCompile(`\b\d{6}\b,?\s*`)
+	reMunicipal    = regexp.MustCompile(`(?i)г\.?\s*о\.?\s*город\s+[А-ЯЁа-яё-]+,?\s*`)
+	reMunicipalRev = regexp.MustCompile(`(?i)город\s+([А-ЯЁ][А-ЯЁа-яё-]*)\s*г\.?\s*о\.?,?\s*`)
+	reDistrict     = regexp.MustCompile(`(?i)(муниципальный\s+район|м\.\s*р-н|сельское\s+поселение|городской\s+округ|р-н)\s*[А-ЯЁа-яё-]*,?\s*`)
+	reRegionName   = regexp.MustCompile(`(?i)[А-ЯЁа-яё-]+\s*(область|обл\.?|край|республика|респ\.?|автономный округ|АО)\.?,?\s*`)
+	reGluedCity    = regexp.MustCompile(`^г([А-ЯЁ])`)
+	// a short bare number left dangling at the start after other cleanup is a
+	// leftover RF region code (e.g. "58" for Пензенская область), never a
+	// real address component.
+	reLeadingBareCode = regexp.MustCompile(`^\d{1,3}\s*,\s*`)
+	// Matches a city name immediately followed by a second mention of the
+	// same city marked with a trailing "г."/"город" (as in the malformed
+	// "г Пенза, Пенза г.," pattern seen in some export rows). Deliberately
+	// not case-insensitive and requires the mandatory trailing "г." marker,
+	// so it never mistakes a lowercase street abbreviation (e.g. "ул") for a
+	// repeated city name.
+	reDuplicateCity = regexp.MustCompile(`^(г\.?\s*[А-ЯЁ][а-яё-]+),\s*(?:город\.?\s*|г\.?\s*)?[А-ЯЁ][а-яё-]+\s*г\.?,?\s*`)
+	reMultiComma    = regexp.MustCompile(`\s*,(?:\s*,)+\s*`)
+	reLeadingJunk   = regexp.MustCompile(`^[,\s]+`)
+	reTrailingJunk  = regexp.MustCompile(`[,\s]+$`)
+)
+
+func normalizeAddress(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	s = reWhitespace.ReplaceAllString(s, " ")
+	s = reLeadingCode.ReplaceAllString(s, "")
+	s = reCountry.ReplaceAllString(s, "")
+	s = reMunicipal.ReplaceAllString(s, "")
+	s = reMunicipalRev.ReplaceAllString(s, "г $1, ")
+	s = reDistrict.ReplaceAllString(s, "")
+	s = rePostalCode.ReplaceAllString(s, "")
+	s = reRegionName.ReplaceAllString(s, "")
+	s = reGluedCity.ReplaceAllString(s, "г $1")
+	for i := 0; i < 2; i++ {
+		trimmed := reLeadingBareCode.ReplaceAllString(s, "")
+		if trimmed == s {
+			break
+		}
+		s = trimmed
+	}
+	s = reDuplicateCity.ReplaceAllString(s, "$1, ")
+	s = reMultiComma.ReplaceAllString(s, ", ")
+	s = reLeadingJunk.ReplaceAllString(s, "")
+	s = reTrailingJunk.ReplaceAllString(s, "")
+	return strings.TrimSpace(s)
 }
 
 func stripBOM(r io.Reader) io.Reader {

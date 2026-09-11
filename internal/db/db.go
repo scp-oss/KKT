@@ -18,6 +18,7 @@ const schema = `
 CREATE TABLE IF NOT EXISTS kkt (
 	id            INTEGER PRIMARY KEY AUTOINCREMENT,
 	serial_number TEXT NOT NULL UNIQUE,
+	organization  TEXT NOT NULL DEFAULT '',
 	reg_number    TEXT NOT NULL DEFAULT '',
 	fn_number     TEXT NOT NULL DEFAULT '',
 	address       TEXT NOT NULL DEFAULT '',
@@ -75,5 +76,43 @@ func Open(path string) (*DB, error) {
 		sqlDB.Close()
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
+	if err := migrate(sqlDB); err != nil {
+		sqlDB.Close()
+		return nil, fmt.Errorf("migrate schema: %w", err)
+	}
 	return &DB{sqlDB}, nil
+}
+
+// migrate adds columns introduced after the initial schema to databases
+// created by older versions of this program.
+func migrate(sqlDB *sql.DB) error {
+	rows, err := sqlDB.Query(`PRAGMA table_info(kkt)`)
+	if err != nil {
+		return err
+	}
+	hasOrganization := false
+	for rows.Next() {
+		var cid int
+		var name, colType string
+		var notNull, pk int
+		var dflt any
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &dflt, &pk); err != nil {
+			rows.Close()
+			return err
+		}
+		if name == "organization" {
+			hasOrganization = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	rows.Close()
+
+	if !hasOrganization {
+		if _, err := sqlDB.Exec(`ALTER TABLE kkt ADD COLUMN organization TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	return nil
 }

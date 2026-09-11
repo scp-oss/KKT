@@ -68,6 +68,10 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
 form.inline { display: inline; }
 
+form.search { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; }
+form.search input[type=text] { flex: 1; }
+form.search .btn { margin-top: 0; }
+
 label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 4px; }
 input[type=text], input[type=password], input[type=file] {
 	width: 100%;

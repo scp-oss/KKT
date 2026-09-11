@@ -6,6 +6,7 @@ import "time"
 // SerialNumber (Заводской номер ККТ) is the unique key every record is keyed on.
 type KKT struct {
 	ID           int64
+	Organization string // организация, к которой относится касса (одна на весь загруженный файл)
 	RegNumber    string // Регистрационный номер ККТ
 	FNNumber     string // Заводской номер ФН
 	SerialNumber string // Заводской номер ККТ (unique)
@@ -26,16 +27,16 @@ func (d *DB) UpsertKKT(k KKT) (id int64, inserted bool, err error) {
 	err = d.QueryRow(`SELECT id FROM kkt WHERE serial_number = ?`, k.SerialNumber).Scan(&existingID)
 	switch err {
 	case nil:
-		_, err = d.Exec(`UPDATE kkt SET reg_number=?, fn_number=?, address=?, model=?, ofd_end_date=?, fn_end_date=?, updated_at=? WHERE id=?`,
-			k.RegNumber, k.FNNumber, k.Address, k.Model, k.OFDEndDate, k.FNEndDate, now, existingID)
+		_, err = d.Exec(`UPDATE kkt SET organization=?, reg_number=?, fn_number=?, address=?, model=?, ofd_end_date=?, fn_end_date=?, updated_at=? WHERE id=?`,
+			k.Organization, k.RegNumber, k.FNNumber, k.Address, k.Model, k.OFDEndDate, k.FNEndDate, now, existingID)
 		if err != nil {
 			return 0, false, err
 		}
 		return existingID, false, nil
 	default:
-		res, insErr := d.Exec(`INSERT INTO kkt (serial_number, reg_number, fn_number, address, model, ofd_end_date, fn_end_date, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			k.SerialNumber, k.RegNumber, k.FNNumber, k.Address, k.Model, k.OFDEndDate, k.FNEndDate, now, now)
+		res, insErr := d.Exec(`INSERT INTO kkt (serial_number, organization, reg_number, fn_number, address, model, ofd_end_date, fn_end_date, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			k.SerialNumber, k.Organization, k.RegNumber, k.FNNumber, k.Address, k.Model, k.OFDEndDate, k.FNEndDate, now, now)
 		if insErr != nil {
 			return 0, false, insErr
 		}
@@ -44,11 +45,16 @@ func (d *DB) UpsertKKT(k KKT) (id int64, inserted bool, err error) {
 	}
 }
 
+// ListKKT returns every record ordered by the earliest of its two expiry
+// dates (ОФД service end date, ФН end date) first; records with neither date
+// set sort last.
 func (d *DB) ListKKT() ([]KKT, error) {
-	rows, err := d.Query(`SELECT id, serial_number, reg_number, fn_number, address, model, ofd_end_date, fn_end_date, created_at, updated_at
+	rows, err := d.Query(`SELECT id, serial_number, organization, reg_number, fn_number, address, model, ofd_end_date, fn_end_date, created_at, updated_at
 		FROM kkt ORDER BY
-		CASE WHEN ofd_end_date = '' THEN 1 ELSE 0 END, ofd_end_date ASC,
-		CASE WHEN fn_end_date = '' THEN 1 ELSE 0 END, fn_end_date ASC`)
+		MIN(
+			CASE WHEN ofd_end_date = '' THEN '9999-12-31' ELSE ofd_end_date END,
+			CASE WHEN fn_end_date = '' THEN '9999-12-31' ELSE fn_end_date END
+		) ASC`)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +63,7 @@ func (d *DB) ListKKT() ([]KKT, error) {
 	var out []KKT
 	for rows.Next() {
 		var k KKT
-		if err := rows.Scan(&k.ID, &k.SerialNumber, &k.RegNumber, &k.FNNumber, &k.Address, &k.Model, &k.OFDEndDate, &k.FNEndDate, &k.CreatedAt, &k.UpdatedAt); err != nil {
+		if err := rows.Scan(&k.ID, &k.SerialNumber, &k.Organization, &k.RegNumber, &k.FNNumber, &k.Address, &k.Model, &k.OFDEndDate, &k.FNEndDate, &k.CreatedAt, &k.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, k)
