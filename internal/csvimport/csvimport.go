@@ -188,7 +188,10 @@ var (
 	// subject type that uses a trailing qualifier: областная/край/республика/
 	// автономный округ (including double-barrel names like "Ханты-Мансийский
 	// автономный округ - Югра").
-	reRegionSuffix = regexp.MustCompile(`(?i)[А-ЯЁа-яё-]+(?:\s*-\s*[А-ЯЁа-яё]+)?\s*(область|обл\.?|край|республика|респ\.?|автономная область|автономный округ|авт\.?\s*округ|АО)\.?(?:\s*-\s*[А-ЯЁа-яё]+)?,?\s*`)
+	// "об." (dot mandatory) is included alongside "обл." - some exports
+	// abbreviate область that far; the mandatory dot keeps it from matching
+	// inside unrelated words.
+	reRegionSuffix = regexp.MustCompile(`(?i)[А-ЯЁа-яё-]+(?:\s*-\s*[А-ЯЁа-яё]+)?\s*(область|обл\.?|об\.|край|республика|респ\.?|автономная область|автономный округ|авт\.?\s*округ|АО)(?:\s*-\s*[А-ЯЁа-яё]+)?,?\s*`)
 	// Region name given as "<keyword> <Name>" (e.g. "Республика Татарстан").
 	reRegionPrefix = regexp.MustCompile(`(?i)(республика|автономная\s+область|автономный\s+округ)\s+[А-ЯЁ][А-ЯЁа-яё-]*(?:\s*-\s*[А-ЯЁа-яё]+)?,?\s*`)
 	reGluedCity    = regexp.MustCompile(`^г([А-ЯЁ])`)
@@ -203,6 +206,11 @@ var (
 	// so it never mistakes a lowercase street abbreviation (e.g. "ул") for a
 	// repeated city name.
 	reDuplicateCity = regexp.MustCompile(`^(г\.?\s*[А-ЯЁ][а-яё-]+),\s*(?:город\.?\s*|г\.?\s*)?[А-ЯЁ][а-яё-]+\s*г\.?,?\s*`)
+	// "ст р." is "стр." (строение) with a stray space splitting it, seen in
+	// some export rows. \b doesn't work here - Go's regexp only treats ASCII
+	// letters as word characters, so it never fires before/after Cyrillic -
+	// the preceding delimiter is captured and put back instead.
+	reSplitStroenie = regexp.MustCompile(`(^|[,\s])ст\s+р\.`)
 	reMultiComma    = regexp.MustCompile(`\s*,(?:\s*,)+\s*`)
 	reLeadingJunk   = regexp.MustCompile(`^[,\s]+`)
 	reTrailingJunk  = regexp.MustCompile(`[,\s]+$`)
@@ -231,6 +239,7 @@ func normalizeAddress(s string) string {
 		s = trimmed
 	}
 	s = reDuplicateCity.ReplaceAllString(s, "$1, ")
+	s = reSplitStroenie.ReplaceAllString(s, "${1}стр.")
 	s = reMultiComma.ReplaceAllString(s, ", ")
 	s = reLeadingJunk.ReplaceAllString(s, "")
 	s = reTrailingJunk.ReplaceAllString(s, "")

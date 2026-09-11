@@ -29,8 +29,6 @@
 		<h2>Реестр ККТ</h2>
 		<form method="get" action="/" class="search">
 			<input type="text" name="q" value="{{.Query}}" placeholder="Поиск по организации или адресу установки">
-			<button class="btn secondary" type="submit">Найти</button>
-			{{if .Query}}<a class="btn secondary" href="/">Сбросить</a>{{end}}
 		</form>
 		{{if .Rows}}
 		<div class="table-wrap">
