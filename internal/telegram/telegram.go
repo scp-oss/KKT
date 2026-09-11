@@ -1,6 +1,6 @@
-// Package telegram sends notification messages through the Telegram Bot API,
-// either directly or through a custom relay/mirror endpoint (useful where
-// api.telegram.org is blocked), optionally tunnelled through a SOCKS5 proxy.
+// Package telegram sends notification messages through the Telegram Bot API:
+// directly, through a SOCKS5 proxy, or through a custom relay/mirror endpoint
+// (useful where api.telegram.org itself is blocked).
 package telegram
 
 import (
@@ -32,12 +32,12 @@ func New(settings db.BotSettings) *Sender {
 func (s *Sender) client() (*http.Client, error) {
 	transport := &http.Transport{}
 
-	if s.settings.Socks5Enabled && s.settings.Socks5Addr != "" {
-		var auth *proxy.Auth
-		if s.settings.Socks5User != "" {
-			auth = &proxy.Auth{User: s.settings.Socks5User, Password: s.settings.Socks5Pass}
+	if s.settings.Mode == db.ModeSocks5 {
+		addr, auth, err := parseSocks5(s.settings.Socks5URL)
+		if err != nil {
+			return nil, err
 		}
-		dialer, err := proxy.SOCKS5("tcp", s.settings.Socks5Addr, auth, proxy.Direct)
+		dialer, err := proxy.SOCKS5("tcp", addr, auth, proxy.Direct)
 		if err != nil {
 			return nil, fmt.Errorf("настройка SOCKS5: %w", err)
 		}
@@ -53,14 +53,38 @@ func (s *Sender) client() (*http.Client, error) {
 	return &http.Client{Transport: transport, Timeout: 15 * time.Second}, nil
 }
 
+// parseSocks5 accepts "socks5://user:pass@host:port" (scheme optional) and
+// returns the dial address plus optional auth.
+func parseSocks5(raw string) (addr string, auth *proxy.Auth, err error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", nil, fmt.Errorf("не задан адрес SOCKS5-прокси")
+	}
+	if !strings.Contains(raw, "://") {
+		raw = "socks5://" + raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return "", nil, fmt.Errorf("некорректный адрес SOCKS5-прокси, ожидается host:port или socks5://user:pass@host:port")
+	}
+	if u.User != nil {
+		password, _ := u.User.Password()
+		auth = &proxy.Auth{User: u.User.Username(), Password: password}
+	}
+	return u.Host, auth, nil
+}
+
 func (s *Sender) endpoint() (string, error) {
 	if s.settings.Token == "" {
 		return "", fmt.Errorf("не задан токен бота")
 	}
 
-	tmpl := s.settings.CustomURLTemplate
-	if s.settings.Mode != "custom" || tmpl == "" {
-		tmpl = defaultDirectURLTemplate
+	tmpl := defaultDirectURLTemplate
+	if s.settings.Mode == db.ModeRelay {
+		if s.settings.RelayURLTemplate == "" {
+			return "", fmt.Errorf("не задан адрес relay-сервера")
+		}
+		tmpl = s.settings.RelayURLTemplate
 	}
 
 	endpoint := strings.ReplaceAll(tmpl, "{TOKEN}", url.PathEscape(s.settings.Token))

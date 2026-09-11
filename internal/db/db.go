@@ -35,11 +35,12 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 CREATE TABLE IF NOT EXISTS recipients (
-	id         INTEGER PRIMARY KEY AUTOINCREMENT,
-	chat_id    TEXT NOT NULL,
-	name       TEXT NOT NULL DEFAULT '',
-	enabled    INTEGER NOT NULL DEFAULT 1,
-	created_at TEXT NOT NULL
+	id           INTEGER PRIMARY KEY AUTOINCREMENT,
+	chat_id      TEXT NOT NULL,
+	name         TEXT NOT NULL DEFAULT '',
+	organization TEXT NOT NULL DEFAULT '',
+	enabled      INTEGER NOT NULL DEFAULT 1,
+	created_at   TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -91,6 +92,9 @@ func migrate(sqlDB *sql.DB) error {
 		return err
 	}
 	if err := addColumnIfMissing(sqlDB, "sessions", "role", `ALTER TABLE sessions ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'`); err != nil {
+		return err
+	}
+	if err := addColumnIfMissing(sqlDB, "recipients", "organization", `ALTER TABLE recipients ADD COLUMN organization TEXT NOT NULL DEFAULT ''`); err != nil {
 		return err
 	}
 	return nil

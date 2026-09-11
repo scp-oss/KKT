@@ -81,3 +81,24 @@ func (d *DB) CountKKT() (int, error) {
 	err := d.QueryRow(`SELECT COUNT(*) FROM kkt`).Scan(&n)
 	return n, err
 }
+
+// ListOrganizations returns the distinct organization names present in the
+// registry, sorted alphabetically. Used to populate the "notify for this
+// organization" recipient dropdown.
+func (d *DB) ListOrganizations() ([]string, error) {
+	rows, err := d.Query(`SELECT DISTINCT organization FROM kkt WHERE organization != '' ORDER BY organization`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []string
+	for rows.Next() {
+		var org string
+		if err := rows.Scan(&org); err != nil {
+			return nil, err
+		}
+		out = append(out, org)
+	}
+	return out, rows.Err()
+}

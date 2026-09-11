@@ -75,7 +75,7 @@ form.search input[type=text] { flex: 1; }
 form.search .btn { margin-top: 0; }
 
 label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 4px; }
-input[type=text], input[type=password], input[type=file] {
+input[type=text], input[type=password], input[type=file], select {
 	width: 100%;
 	padding: 9px 10px;
 	background: #0b1220;
@@ -84,7 +84,18 @@ input[type=text], input[type=password], input[type=file] {
 	color: var(--text);
 	font-size: 14px;
 }
+select { appearance: auto; }
 input[type=checkbox] { margin-right: 6px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+@media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
+
+.mode-radios { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 6px 0; }
+.radio-label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); cursor: pointer; margin: 0; }
+.radio-label input[type=radio] { margin: 0; }
+
+.mode-fields { padding: 12px 14px; margin-top: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px; }
+.mode-fields label:first-child { margin-top: 0; }
 
 .btn {
 	display: inline-block;

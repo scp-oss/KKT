@@ -4,17 +4,22 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
+	"kkt-monitor/internal/csvimport"
+	"kkt-monitor/internal/db"
 	"kkt-monitor/internal/notify"
 	"kkt-monitor/internal/telegram"
 )
 
 func (s *Server) handleSettingsForm(w http.ResponseWriter, r *http.Request) {
-	s.renderSettings(w, "", "")
+	s.renderSettings(w, nil)
 }
 
-func (s *Server) renderSettings(w http.ResponseWriter, successMsg, errorMsg string) {
+// renderSettings renders the settings page, merging extra (typically a
+// Success/Error message, or upload-result fields) over the base data.
+func (s *Server) renderSettings(w http.ResponseWriter, extra map[string]any) {
 	settings, err := s.store.GetBotSettings()
 	if err != nil {
 		http.Error(w, "ошибка чтения настроек", http.StatusInternalServerError)
@@ -25,21 +30,33 @@ func (s *Server) renderSettings(w http.ResponseWriter, successMsg, errorMsg stri
 		http.Error(w, "ошибка чтения получателей", http.StatusInternalServerError)
 		return
 	}
+	organizations, err := s.store.ListOrganizations()
+	if err != nil {
+		http.Error(w, "ошибка чтения списка организаций", http.StatusInternalServerError)
+		return
+	}
+	pollTime1, pollTime2, err := s.store.GetPollSchedule()
+	if err != nil {
+		http.Error(w, "ошибка чтения расписания опроса", http.StatusInternalServerError)
+		return
+	}
 
-	s.render(w, "settings.html", map[string]any{
+	data := map[string]any{
 		"Mode":          settings.Mode,
 		"TokenSet":      settings.Token != "",
 		"AuthKeySet":    settings.AuthKey != "",
-		"CustomURLSet":  settings.CustomURLTemplate != "",
-		"Socks5Enabled": settings.Socks5Enabled,
-		"Socks5Addr":    settings.Socks5Addr,
-		"Socks5UserSet": settings.Socks5User != "",
-		"Socks5PassSet": settings.Socks5Pass != "",
+		"RelayURLSet":   settings.RelayURLTemplate != "",
+		"Socks5URLSet":  settings.Socks5URL != "",
+		"PollTime1":     pollTime1,
+		"PollTime2":     pollTime2,
 		"Recipients":    recipients,
+		"Organizations": organizations,
 		"Thresholds":    notify.Thresholds,
-		"Success":       successMsg,
-		"Error":         errorMsg,
-	})
+	}
+	for k, v := range extra {
+		data[k] = v
+	}
+	s.render(w, "settings.html", data)
 }
 
 func (s *Server) handleSettingsBotSubmit(w http.ResponseWriter, r *http.Request) {
@@ -49,23 +66,42 @@ func (s *Server) handleSettingsBotSubmit(w http.ResponseWriter, r *http.Request)
 	}
 
 	mode := r.FormValue("mode")
-	if mode != "direct" && mode != "custom" {
-		mode = "direct"
+	switch mode {
+	case db.ModeDirect, db.ModeSocks5, db.ModeRelay:
+	default:
+		mode = db.ModeDirect
 	}
-	socks5Enabled := r.FormValue("socks5_enabled") == "on"
-	socks5Addr := r.FormValue("socks5_addr")
+
+	pollTime1 := strings.TrimSpace(r.FormValue("poll_time_1"))
+	if pollTime1 == "" {
+		pollTime1 = "09:00"
+	}
+	pollTime2 := strings.TrimSpace(r.FormValue("poll_time_2"))
+	if _, err := time.Parse("15:04", pollTime1); err != nil {
+		s.renderSettings(w, map[string]any{"Error": "Время опроса 1: неверный формат, ожидается ЧЧ:ММ"})
+		return
+	}
+	if pollTime2 != "" {
+		if _, err := time.Parse("15:04", pollTime2); err != nil {
+			s.renderSettings(w, map[string]any{"Error": "Время опроса 2: неверный формат, ожидается ЧЧ:ММ"})
+			return
+		}
+	}
 
 	token := optionalField(r.FormValue("token"))
 	authKey := optionalField(r.FormValue("auth_key"))
-	customURL := optionalField(r.FormValue("custom_url"))
-	socks5User := optionalField(r.FormValue("socks5_user"))
-	socks5Pass := optionalField(r.FormValue("socks5_pass"))
+	relayURL := optionalField(r.FormValue("relay_url"))
+	socks5URL := optionalField(r.FormValue("socks5_url"))
 
-	if err := s.store.SaveBotSettings(mode, token, authKey, customURL, socks5Enabled, socks5Addr, socks5User, socks5Pass); err != nil {
-		s.renderSettings(w, "", "Ошибка сохранения настроек: "+err.Error())
+	if err := s.store.SetPollSchedule(pollTime1, pollTime2); err != nil {
+		s.renderSettings(w, map[string]any{"Error": "Ошибка сохранения расписания: " + err.Error()})
 		return
 	}
-	s.renderSettings(w, "Настройки бота сохранены.", "")
+	if err := s.store.SaveBotSettings(mode, token, authKey, relayURL, socks5URL); err != nil {
+		s.renderSettings(w, map[string]any{"Error": "Ошибка сохранения настроек: " + err.Error()})
+		return
+	}
+	s.renderSettings(w, map[string]any{"Success": "Настройки сохранены."})
 }
 
 func optionalField(v string) *string {
@@ -80,14 +116,15 @@ func (s *Server) handleRecipientAdd(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	chatID := r.FormValue("chat_id")
-	name := r.FormValue("name")
+	chatID := strings.TrimSpace(r.FormValue("chat_id"))
+	name := strings.TrimSpace(r.FormValue("name"))
+	organization := r.FormValue("organization") // "" means all organizations
 	if chatID == "" {
-		s.renderSettings(w, "", "Укажите chat_id получателя")
+		s.renderSettings(w, map[string]any{"Error": "Укажите chat_id получателя"})
 		return
 	}
-	if err := s.store.AddRecipient(chatID, name); err != nil {
-		s.renderSettings(w, "", "Ошибка добавления получателя: "+err.Error())
+	if err := s.store.AddRecipient(chatID, name, organization); err != nil {
+		s.renderSettings(w, map[string]any{"Error": "Ошибка добавления получателя: " + err.Error()})
 		return
 	}
 	http.Redirect(w, r, "/settings", http.StatusSeeOther)
@@ -129,16 +166,16 @@ func (s *Server) handleRecipientToggle(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSettingsTest(w http.ResponseWriter, r *http.Request) {
 	settings, err := s.store.GetBotSettings()
 	if err != nil {
-		s.renderSettings(w, "", "Ошибка чтения настроек: "+err.Error())
+		s.renderSettings(w, map[string]any{"Error": "Ошибка чтения настроек: " + err.Error()})
 		return
 	}
 	recipients, err := s.store.ListEnabledRecipients()
 	if err != nil {
-		s.renderSettings(w, "", "Ошибка чтения получателей: "+err.Error())
+		s.renderSettings(w, map[string]any{"Error": "Ошибка чтения получателей: " + err.Error()})
 		return
 	}
 	if len(recipients) == 0 {
-		s.renderSettings(w, "", "Нет активных получателей для тестовой отправки")
+		s.renderSettings(w, map[string]any{"Error": "Нет активных получателей для тестовой отправки"})
 		return
 	}
 
@@ -155,8 +192,42 @@ func (s *Server) handleSettingsTest(w http.ResponseWriter, r *http.Request) {
 			}
 			msg += e.Error()
 		}
-		s.renderSettings(w, "", msg)
+		s.renderSettings(w, map[string]any{"Error": msg})
 		return
 	}
-	s.renderSettings(w, "Тестовое сообщение отправлено всем активным получателям.", "")
+	s.renderSettings(w, map[string]any{"Success": "Тестовое сообщение отправлено всем активным получателям."})
+}
+
+func (s *Server) handleUploadSubmit(w http.ResponseWriter, r *http.Request) {
+	// 32 MiB in-memory limit for parsed multipart parts; the file itself
+	// spills to a temp file beyond that if larger.
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		s.renderSettings(w, map[string]any{"UploadError": "Не удалось прочитать форму: " + err.Error()})
+		return
+	}
+	organization := strings.TrimSpace(r.FormValue("organization"))
+	if organization == "" {
+		s.renderSettings(w, map[string]any{"UploadError": "Укажите название организации, которой принадлежит файл"})
+		return
+	}
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		s.renderSettings(w, map[string]any{"UploadError": "Выберите CSV-файл для загрузки"})
+		return
+	}
+	defer file.Close()
+
+	result, err := csvimport.Import(s.store, file, organization)
+	if err != nil {
+		s.renderSettings(w, map[string]any{"UploadError": "Ошибка импорта: " + err.Error()})
+		return
+	}
+
+	s.renderSettings(w, map[string]any{
+		"UploadSuccess": "Импорт завершён: добавлено " + strconv.Itoa(result.Inserted) +
+			", обновлено " + strconv.Itoa(result.Updated) +
+			", пропущено " + strconv.Itoa(result.Skipped) + ".",
+		"UploadErrors": result.Errors,
+	})
 }

@@ -47,7 +47,6 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
 	s.mux.HandleFunc("POST /kkt/{id}/delete", s.requireAuth(s.handleDeleteKKT))
 
-	s.mux.HandleFunc("GET /upload", s.requireAuth(s.handleUploadForm))
 	s.mux.HandleFunc("POST /upload", s.requireAuth(s.handleUploadSubmit))
 
 	s.mux.HandleFunc("GET /settings", s.requireAuth(s.handleSettingsForm))

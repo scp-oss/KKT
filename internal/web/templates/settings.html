@@ -11,77 +11,117 @@
 	<h1>Мониторинг ККТ</h1>
 	<nav>
 		<a href="/">Реестр</a>
-		<a href="/upload">Загрузка CSV</a>
 		<a href="/settings" class="active">Настройки</a>
 		<form class="inline" method="post" action="/logout"><a href="#" onclick="this.closest('form').submit();return false;">Выход</a></form>
 	</nav>
 </div>
 <div class="container">
+
+	<div class="card">
+		<h2>Загрузка CSV</h2>
+		<p class="hint">Файл экспорта «Мониторинг ККТ и ФН» (разделитель «;»). Запись определяется уникальным полем «Заводской номер ККТ» — при повторной загрузке существующие записи обновляются, новые добавляются. Один файл — одна организация.</p>
+
+		{{if .UploadSuccess}}<div class="alert success">{{.UploadSuccess}}</div>{{end}}
+		{{if .UploadError}}<div class="alert error">{{.UploadError}}</div>{{end}}
+		{{if .UploadErrors}}
+		<div class="alert error">
+			<div>Замечания при импорте:</div>
+			<ul class="errlist">{{range .UploadErrors}}<li>{{.}}</li>{{end}}</ul>
+		</div>
+		{{end}}
+
+		<form method="post" action="/upload" enctype="multipart/form-data">
+			<div class="grid-2">
+				<div>
+					<label for="organization">Организация</label>
+					<input type="text" id="organization" name="organization" placeholder="например, ИП Пупкин И.В." required>
+				</div>
+				<div>
+					<label for="file">CSV-файл</label>
+					<input type="file" id="file" name="file" accept=".csv,text/csv" required>
+				</div>
+			</div>
+			<button class="btn" type="submit">Загрузить</button>
+		</form>
+	</div>
+
 	{{if .Success}}<div class="alert success">{{.Success}}</div>{{end}}
 	{{if .Error}}<div class="alert error">{{.Error}}</div>{{end}}
 
 	<div class="card">
-		<h2>Telegram-бот</h2>
-		<p class="hint">
-			Уведомления отправляются автоматически за
-			{{range $i, $d := .Thresholds}}{{if $i}}, {{end}}{{$d}}{{end}}
-			дн. до окончания срока ФН и окончания оказания услуг (ОФД).
-			Секретные поля (токен, ключ, адрес, пароль) не отображаются повторно —
-			оставьте поле пустым, чтобы сохранить текущее значение.
-		</p>
+		<h2>Расписание опроса</h2>
 		<form method="post" action="/settings/bot">
-			<label>Способ отправки</label>
-			<label style="display:inline-block;margin-right:16px;font-size:14px;color:var(--text)">
-				<input type="radio" name="mode" value="direct" {{if eq .Mode "direct"}}checked{{end}}> Напрямую (api.telegram.org)
-			</label>
-			<label style="display:inline-block;font-size:14px;color:var(--text)">
-				<input type="radio" name="mode" value="custom" {{if eq .Mode "custom"}}checked{{end}}> Через свой relay/прокси-адрес
-			</label>
+			<div class="grid-2">
+				<div>
+					<label for="poll_time_1">Время опроса 1</label>
+					<input type="text" id="poll_time_1" name="poll_time_1" value="{{.PollTime1}}" placeholder="09:00">
+				</div>
+				<div>
+					<label for="poll_time_2">Время опроса 2 (необязательно)</label>
+					<input type="text" id="poll_time_2" name="poll_time_2" value="{{.PollTime2}}" placeholder="21:00">
+				</div>
+			</div>
+			<p class="hint">
+				Формат ЧЧ:ММ, время сервера. Оставьте поле 2 пустым, если опрос нужен раз в сутки.
+				Уведомления придут за {{range $i, $d := .Thresholds}}{{if $i}}, {{end}}{{$d}}{{end}} дн.
+				до окончания срока ФН и до окончания оказания услуг (ОФД). Бот проверяет эти настройки
+				при каждой отправке — перезапуск не требуется.
+			</p>
 
-			<label for="token">Токен бота {{if .TokenSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
-			<input type="password" id="token" name="token" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
+			<label for="token">Токен Telegram-бота {{if .TokenSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+			<input type="password" id="token" name="token" placeholder="оставьте пустым, чтобы не менять; напр. 123456789:AAExampleExampleExampleExampleE" autocomplete="off">
+			<p class="hint">Получить токен можно у <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>.</p>
 
-			<label for="custom_url">Шаблон адреса (только для «через relay»), например
-				<code>https://example.tld/bot{TOKEN}/sendMessage?auth={AUTH_KEY}</code>
-				{{if .CustomURLSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}
-			</label>
-			<input type="password" id="custom_url" name="custom_url" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
+			<label>Способ отправки в Telegram</label>
+			<div class="mode-radios">
+				<label class="radio-label"><input type="radio" name="mode" value="direct" {{if eq .Mode "direct"}}checked{{end}}> Напрямую</label>
+				<label class="radio-label"><input type="radio" name="mode" value="socks5" {{if eq .Mode "socks5"}}checked{{end}}> Через SOCKS5</label>
+				<label class="radio-label"><input type="radio" name="mode" value="relay" {{if eq .Mode "relay"}}checked{{end}}> Через relay-сервер</label>
+			</div>
+			<p class="hint">Если api.telegram.org недоступен напрямую, отправку можно пустить через SOCKS5-прокси
+				или через сторонний relay, зеркалирующий Bot API под своим доменом.</p>
 
-			<label for="auth_key">Ключ авторизации (auth_key) {{if .AuthKeySet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
-			<input type="password" id="auth_key" name="auth_key" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
+			<div id="socks5-fields" class="mode-fields">
+				<label for="socks5_url">Адрес SOCKS5-прокси {{if .Socks5URLSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+				<input type="password" id="socks5_url" name="socks5_url" placeholder="socks5://user:pass@host:1080" autocomplete="off">
+			</div>
 
-			<label>
-				<input type="checkbox" name="socks5_enabled" {{if .Socks5Enabled}}checked{{end}}> Отправлять через SOCKS5-прокси
-			</label>
+			<div id="relay-fields" class="mode-fields">
+				<label for="relay_url">Адрес relay-сервера {{if .RelayURLSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+				<input type="password" id="relay_url" name="relay_url" placeholder="напр. https://example.tld/bot{TOKEN}/sendMessage?auth={AUTH_KEY}" autocomplete="off">
 
-			<label for="socks5_addr">Адрес SOCKS5 (host:port)</label>
-			<input type="text" id="socks5_addr" name="socks5_addr" value="{{.Socks5Addr}}" placeholder="127.0.0.1:1080">
+				<label for="auth_key">Ключ авторизации relay-сервера (auth) {{if .AuthKeySet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+				<input type="password" id="auth_key" name="auth_key" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
+				<p class="hint">Итоговый запрос: {relay}/bot{token}/sendMessage?auth={ключ}</p>
+			</div>
 
-			<label for="socks5_user">Логин SOCKS5 {{if .Socks5UserSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
-			<input type="password" id="socks5_user" name="socks5_user" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
-
-			<label for="socks5_pass">Пароль SOCKS5 {{if .Socks5PassSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
-			<input type="password" id="socks5_pass" name="socks5_pass" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
-
-			<button class="btn" type="submit">Сохранить настройки бота</button>
+			<button class="btn" type="submit">Сохранить</button>
 		</form>
 		<form method="post" action="/settings/test" style="margin-top:6px">
-			<button class="btn secondary" type="submit">Отправить тестовое сообщение</button>
+			<button class="btn secondary" type="submit">Отправить тестовое сообщение всем</button>
 		</form>
 	</div>
 
 	<div class="card">
-		<h2>Получатели уведомлений</h2>
+		<h2>Получатели уведомлений в Telegram</h2>
+		<p class="hint">
+			Уведомления придут за {{range $i, $d := .Thresholds}}{{if $i}}, {{end}}{{$d}}{{end}} дн. до окончания каждого срока.
+			Получатель, привязанный к конкретной организации, видит только её уведомления — так разные клиенты
+			не путаются между собой; получатель без привязки («Все организации») получает всё.
+		</p>
+
 		{{if .Recipients}}
+		<div class="table-wrap">
 		<table>
-			<thead><tr><th>Chat ID</th><th>Имя</th><th>Статус</th><th></th></tr></thead>
+			<thead><tr><th>Chat ID</th><th>Название</th><th>Организация</th><th>Статус</th><th></th></tr></thead>
 			<tbody>
 			{{range .Recipients}}
 			<tr>
-				<td>{{.ChatID}}</td>
+				<td class="nowrap">{{.ChatID}}</td>
 				<td>{{.Name}}</td>
+				<td>{{if .Organization}}{{.Organization}}{{else}}Все организации{{end}}</td>
 				<td>{{if .Enabled}}<span class="badge ok">активен</span>{{else}}<span class="badge none">отключен</span>{{end}}</td>
-				<td>
+				<td class="nowrap">
 					<form class="inline" method="post" action="/settings/recipients/{{.ID}}/toggle">
 						<button class="btn secondary small" type="submit">{{if .Enabled}}Отключить{{else}}Включить{{end}}</button>
 					</form>
@@ -93,18 +133,47 @@
 			{{end}}
 			</tbody>
 		</table>
+		</div>
 		{{else}}
 		<p class="hint">Получатели ещё не добавлены.</p>
 		{{end}}
 
 		<form method="post" action="/settings/recipients/add">
-			<label for="chat_id">Chat ID</label>
-			<input type="text" id="chat_id" name="chat_id" placeholder="например, 123456789" required>
-			<label for="name">Имя (необязательно)</label>
-			<input type="text" id="name" name="name" placeholder="например, Бухгалтер">
+			<div class="grid-2">
+				<div>
+					<label for="chat_id">Chat ID</label>
+					<input type="text" id="chat_id" name="chat_id" placeholder="123456789 или -1001234567890" required>
+				</div>
+				<div>
+					<label for="name">Название (необязательно)</label>
+					<input type="text" id="name" name="name" placeholder="Иванов И.И.">
+				</div>
+			</div>
+			<label for="recipient_org">Уведомлять по организации</label>
+			<select id="recipient_org" name="organization">
+				<option value="">Все организации</option>
+				{{range .Organizations}}<option value="{{.}}">{{.}}</option>{{end}}
+			</select>
+			<p class="hint">Chat ID можно узнать, написав боту <a href="https://t.me/userinfobot" target="_blank" rel="noopener">@userinfobot</a>, либо добавив бота в группу.</p>
 			<button class="btn" type="submit">Добавить получателя</button>
 		</form>
 	</div>
+
 </div>
+<script>
+(function () {
+	var radios = document.querySelectorAll('input[name="mode"]');
+	var socks5Fields = document.getElementById('socks5-fields');
+	var relayFields = document.getElementById('relay-fields');
+	function update() {
+		var checked = document.querySelector('input[name="mode"]:checked');
+		var mode = checked ? checked.value : 'direct';
+		socks5Fields.hidden = mode !== 'socks5';
+		relayFields.hidden = mode !== 'relay';
+	}
+	radios.forEach(function (r) { r.addEventListener('change', update); });
+	update();
+})();
+</script>
 </body>
 </html>

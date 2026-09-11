@@ -12,7 +12,6 @@
 	<nav>
 		<a href="/" class="active">Реестр</a>
 		{{if .IsAdmin}}
-		<a href="/upload">Загрузка CSV</a>
 		<a href="/settings">Настройки</a>
 		<form class="inline" method="post" action="/logout"><a href="#" onclick="this.closest('form').submit();return false;">Выход</a></form>
 		{{else}}
@@ -85,7 +84,7 @@
 		{{else if .Query}}
 		<p class="hint">Ничего не найдено по запросу «{{.Query}}».</p>
 		{{else if .IsAdmin}}
-		<p class="hint">Пока нет данных. <a href="/upload">Загрузите CSV-файл</a>, чтобы начать.</p>
+		<p class="hint">Пока нет данных. <a href="/settings">Загрузите CSV-файл</a>, чтобы начать.</p>
 		{{else}}
 		<p class="hint">Пока нет данных.</p>
 		{{end}}

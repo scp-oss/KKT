@@ -1,22 +1,25 @@
 package db
 
+// Bot delivery modes: exactly one is active at a time.
+const (
+	ModeDirect = "direct" // straight to api.telegram.org
+	ModeSocks5 = "socks5" // api.telegram.org through a SOCKS5 proxy
+	ModeRelay  = "relay"  // a custom relay/mirror endpoint, e.g. a domain that mirrors the Bot API
+)
+
 // BotSettings holds the Telegram delivery configuration. Secrets (Token, AuthKey,
-// CustomURLTemplate, Socks5*) are stored server-side only and are never re-rendered
+// RelayURLTemplate, Socks5URL) are stored server-side only and are never re-rendered
 // into HTML once set — the settings form always shows them blank.
 type BotSettings struct {
-	Mode              string // "direct" or "custom"
-	Token             string
-	AuthKey           string // used by custom relay endpoints, e.g. ?auth=...
-	CustomURLTemplate string // must contain {TOKEN}; may contain {AUTH_KEY}
-	Socks5Enabled     bool
-	Socks5Addr        string
-	Socks5User        string
-	Socks5Pass        string
+	Mode             string // ModeDirect, ModeSocks5 or ModeRelay
+	Token            string
+	AuthKey          string // used by the relay endpoint, e.g. ?auth=...
+	RelayURLTemplate string // must contain {TOKEN}; may contain {AUTH_KEY}
+	Socks5URL        string // e.g. socks5://user:pass@host:1080
 }
 
 var settingsKeys = []string{
-	"bot_mode", "bot_token", "bot_auth_key", "bot_custom_url_template",
-	"socks5_enabled", "socks5_addr", "socks5_user", "socks5_pass",
+	"bot_mode", "bot_token", "bot_auth_key", "bot_relay_url_template", "bot_socks5_url",
 }
 
 func (d *DB) GetSetting(key string) (string, error) {
@@ -44,17 +47,17 @@ func (d *DB) GetBotSettings() (BotSettings, error) {
 		vals[k] = v
 	}
 	s := BotSettings{
-		Mode:              vals["bot_mode"],
-		Token:             vals["bot_token"],
-		AuthKey:           vals["bot_auth_key"],
-		CustomURLTemplate: vals["bot_custom_url_template"],
-		Socks5Enabled:     vals["socks5_enabled"] == "1",
-		Socks5Addr:        vals["socks5_addr"],
-		Socks5User:        vals["socks5_user"],
-		Socks5Pass:        vals["socks5_pass"],
+		Mode:             vals["bot_mode"],
+		Token:            vals["bot_token"],
+		AuthKey:          vals["bot_auth_key"],
+		RelayURLTemplate: vals["bot_relay_url_template"],
+		Socks5URL:        vals["bot_socks5_url"],
 	}
-	if s.Mode == "" {
-		s.Mode = "direct"
+	switch s.Mode {
+	case "":
+		s.Mode = ModeDirect
+	case "custom":
+		s.Mode = ModeRelay // legacy value from before the 3-way mode split
 	}
 	return s, nil
 }
@@ -62,22 +65,15 @@ func (d *DB) GetBotSettings() (BotSettings, error) {
 // SaveBotSettings persists non-empty fields. Blank secret fields are left
 // untouched so the settings form can be submitted without re-typing secrets
 // that shouldn't change.
-func (d *DB) SaveBotSettings(mode string, token, authKey, customURL *string, socks5Enabled bool, socks5Addr string, socks5User, socks5Pass *string) error {
+func (d *DB) SaveBotSettings(mode string, token, authKey, relayURL, socks5URL *string) error {
 	if err := d.SetSetting("bot_mode", mode); err != nil {
 		return err
 	}
-	if err := d.setSettingBool("socks5_enabled", socks5Enabled); err != nil {
-		return err
-	}
-	if err := d.SetSetting("socks5_addr", socks5Addr); err != nil {
-		return err
-	}
 	for key, val := range map[string]*string{
-		"bot_token":               token,
-		"bot_auth_key":            authKey,
-		"bot_custom_url_template": customURL,
-		"socks5_user":             socks5User,
-		"socks5_pass":             socks5Pass,
+		"bot_token":              token,
+		"bot_auth_key":           authKey,
+		"bot_relay_url_template": relayURL,
+		"bot_socks5_url":         socks5URL,
 	} {
 		if val != nil && *val != "" {
 			if err := d.SetSetting(key, *val); err != nil {
@@ -88,10 +84,27 @@ func (d *DB) SaveBotSettings(mode string, token, authKey, customURL *string, soc
 	return nil
 }
 
-func (d *DB) setSettingBool(key string, v bool) error {
-	val := "0"
-	if v {
-		val = "1"
+// GetPollSchedule returns the configured daily check times (HH:MM, server
+// local time). Time1 defaults to "09:00" when unset; Time2 is optional and
+// empty when the registry should only be checked once a day.
+func (d *DB) GetPollSchedule() (time1, time2 string, err error) {
+	time1, err = d.GetSetting("poll_time_1")
+	if err != nil {
+		return "", "", err
 	}
-	return d.SetSetting(key, val)
+	if time1 == "" {
+		time1 = "09:00"
+	}
+	time2, err = d.GetSetting("poll_time_2")
+	if err != nil {
+		return "", "", err
+	}
+	return time1, time2, nil
+}
+
+func (d *DB) SetPollSchedule(time1, time2 string) error {
+	if err := d.SetSetting("poll_time_1", time1); err != nil {
+		return err
+	}
+	return d.SetSetting("poll_time_2", time2)
 }

@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 
 	"kkt-monitor/internal/db"
@@ -15,7 +17,10 @@ import (
 // Thresholds are the days-remaining values that trigger a notification.
 var Thresholds = []int{30, 10, 5, 2, 1}
 
-const checkInterval = time.Hour
+// maxSleep bounds how long Run ever sleeps in one stretch, so a change to
+// the poll schedule in settings is picked up promptly instead of only after
+// the previously configured time already passed.
+const maxSleep = 15 * time.Minute
 
 type Scheduler struct {
 	store *db.DB
@@ -25,22 +30,82 @@ func New(store *db.DB) *Scheduler {
 	return &Scheduler{store: store}
 }
 
-// Run blocks, checking for due notifications immediately and then on a
-// fixed interval, until ctx is cancelled. Checking more often than daily is
-// harmless: notification_log deduplicates by (kkt, field, threshold, date).
+// Run blocks, checking for due notifications immediately and then at the
+// configured poll times, until ctx is cancelled. Checking more often than
+// scheduled is harmless: notification_log deduplicates by
+// (kkt, field, threshold, date).
 func (s *Scheduler) Run(ctx context.Context) {
 	s.checkOnce(ctx)
 
-	ticker := time.NewTicker(checkInterval)
-	defer ticker.Stop()
 	for {
+		next := s.nextFireTime()
+		wait := time.Until(next)
+		if wait > maxSleep {
+			wait = maxSleep
+		}
+		if wait < 0 {
+			wait = 0
+		}
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			s.checkOnce(ctx)
+		case <-time.After(wait):
+			if !time.Now().Before(next) {
+				s.checkOnce(ctx)
+			}
 		}
 	}
+}
+
+// nextFireTime reads the configured poll schedule (re-read every call, so
+// changes in settings take effect without a restart) and returns the
+// soonest upcoming HH:MM occurrence.
+func (s *Scheduler) nextFireTime() time.Time {
+	time1, time2, err := s.store.GetPollSchedule()
+	if err != nil {
+		log.Printf("notify: чтение расписания опроса: %v", err)
+		time1, time2 = "09:00", ""
+	}
+
+	now := time.Now()
+	next := nextOccurrence(now, time1)
+	if time2 != "" {
+		if t2 := nextOccurrence(now, time2); !t2.IsZero() && (next.IsZero() || t2.Before(next)) {
+			next = t2
+		}
+	}
+	if next.IsZero() {
+		next = now.Add(time.Hour) // safety net for an unparsable schedule
+	}
+	return next
+}
+
+// nextOccurrence returns the next time "HH:MM" (server local time) occurs
+// at or after now - today if it hasn't passed yet, tomorrow otherwise. A
+// malformed value returns the zero Time.
+func nextOccurrence(now time.Time, hhmm string) time.Time {
+	hh, mm, ok := parseHHMM(hhmm)
+	if !ok {
+		return time.Time{}
+	}
+	candidate := time.Date(now.Year(), now.Month(), now.Day(), hh, mm, 0, 0, now.Location())
+	if !candidate.After(now) {
+		candidate = candidate.AddDate(0, 0, 1)
+	}
+	return candidate
+}
+
+func parseHHMM(s string) (hh, mm int, ok bool) {
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) != 2 {
+		return 0, 0, false
+	}
+	hh, err1 := strconv.Atoi(parts[0])
+	mm, err2 := strconv.Atoi(parts[1])
+	if err1 != nil || err2 != nil || hh < 0 || hh > 23 || mm < 0 || mm > 59 {
+		return 0, 0, false
+	}
+	return hh, mm, true
 }
 
 func (s *Scheduler) checkOnce(ctx context.Context) {
@@ -57,12 +122,12 @@ func (s *Scheduler) checkOnce(ctx context.Context) {
 		return // bot not configured yet
 	}
 
-	recipients, err := s.store.ListEnabledRecipients()
+	anyRecipients, err := s.store.ListEnabledRecipients()
 	if err != nil {
 		log.Printf("notify: чтение получателей: %v", err)
 		return
 	}
-	if len(recipients) == 0 {
+	if len(anyRecipients) == 0 {
 		return
 	}
 
@@ -76,6 +141,14 @@ func (s *Scheduler) checkOnce(ctx context.Context) {
 	today := time.Now().Truncate(24 * time.Hour)
 
 	for _, k := range records {
+		recipients, err := s.store.ListEnabledRecipientsForOrganization(k.Organization)
+		if err != nil {
+			log.Printf("notify: чтение получателей для организации %q: %v", k.Organization, err)
+			continue
+		}
+		if len(recipients) == 0 {
+			continue
+		}
 		s.checkField(ctx, sender, recipients, k, "ofd", "Дата окончания оказания услуг (ОФД)", k.OFDEndDate, today)
 		s.checkField(ctx, sender, recipients, k, "fn", "Дата окончания срока ФН", k.FNEndDate, today)
 	}
@@ -109,8 +182,8 @@ func (s *Scheduler) checkField(ctx context.Context, sender *telegram.Sender, rec
 		for _, e := range errs {
 			log.Printf("notify: ошибка отправки: %v", e)
 		}
-		// Mark as sent even on partial failure so we don't spam retries every
-		// hour; the next threshold crossing will try again.
+		// Mark as sent even on partial failure so we don't spam retries at
+		// the next poll; the next threshold crossing will try again.
 		if err := s.store.MarkNotified(k.ID, field, threshold, endDate); err != nil {
 			log.Printf("notify: сохранение отметки об отправке: %v", err)
 		}
@@ -127,7 +200,7 @@ func formatMessage(k db.KKT, fieldLabel, endDate string, daysLeft int) string {
 		dayWord = "дня"
 	}
 	return fmt.Sprintf(
-		"⚠ Внимание: %s\n\n%s истекает через %d %s (%s)\n\nККТ: %s\nЗав. номер ККТ: %s\nЗав. номер ФН: %s\nРег. номер ККТ: %s\nАдрес: %s",
-		k.Model, fieldLabel, daysLeft, dayWord, endDate, k.Model, k.SerialNumber, k.FNNumber, k.RegNumber, k.Address,
+		"⚠ Внимание: %s\n\n%s истекает через %d %s (%s)\n\nОрганизация: %s\nККТ: %s\nЗав. номер ККТ: %s\nЗав. номер ФН: %s\nРег. номер ККТ: %s\nАдрес: %s",
+		k.Model, fieldLabel, daysLeft, dayWord, endDate, k.Organization, k.Model, k.SerialNumber, k.FNNumber, k.RegNumber, k.Address,
 	)
 }
