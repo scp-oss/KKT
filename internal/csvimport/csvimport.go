@@ -184,7 +184,13 @@ var (
 	reMunicipal    = regexp.MustCompile(`(?i)г\.?\s*о\.?\s*город\s+[А-ЯЁа-яё-]+,?\s*`)
 	reMunicipalRev = regexp.MustCompile(`(?i)город\s+([А-ЯЁ][А-ЯЁа-яё-]*)\s*г\.?\s*о\.?,?\s*`)
 	reDistrict     = regexp.MustCompile(`(?i)(муниципальный\s+район|м\.\s*р-н|сельское\s+поселение|городской\s+округ|р-н)\s*[А-ЯЁа-яё-]*,?\s*`)
-	reRegionName   = regexp.MustCompile(`(?i)[А-ЯЁа-яё-]+\s*(область|обл\.?|край|республика|респ\.?|автономный округ|АО)\.?,?\s*`)
+	// Region name given as "<Name> <keyword>", covering every Russian federal
+	// subject type that uses a trailing qualifier: областная/край/республика/
+	// автономный округ (including double-barrel names like "Ханты-Мансийский
+	// автономный округ - Югра").
+	reRegionSuffix = regexp.MustCompile(`(?i)[А-ЯЁа-яё-]+(?:\s*-\s*[А-ЯЁа-яё]+)?\s*(область|обл\.?|край|республика|респ\.?|автономная область|автономный округ|авт\.?\s*округ|АО)\.?(?:\s*-\s*[А-ЯЁа-яё]+)?,?\s*`)
+	// Region name given as "<keyword> <Name>" (e.g. "Республика Татарстан").
+	reRegionPrefix = regexp.MustCompile(`(?i)(республика|автономная\s+область|автономный\s+округ)\s+[А-ЯЁ][А-ЯЁа-яё-]*(?:\s*-\s*[А-ЯЁа-яё]+)?,?\s*`)
 	reGluedCity    = regexp.MustCompile(`^г([А-ЯЁ])`)
 	// a short bare number left dangling at the start after other cleanup is a
 	// leftover RF region code (e.g. "58" for Пензенская область), never a
@@ -214,7 +220,8 @@ func normalizeAddress(s string) string {
 	s = reMunicipalRev.ReplaceAllString(s, "г $1, ")
 	s = reDistrict.ReplaceAllString(s, "")
 	s = rePostalCode.ReplaceAllString(s, "")
-	s = reRegionName.ReplaceAllString(s, "")
+	s = reRegionPrefix.ReplaceAllString(s, "")
+	s = reRegionSuffix.ReplaceAllString(s, "")
 	s = reGluedCity.ReplaceAllString(s, "г $1")
 	for i := 0; i < 2; i++ {
 		trimmed := reLeadingBareCode.ReplaceAllString(s, "")
