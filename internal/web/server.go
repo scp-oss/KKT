@@ -46,6 +46,8 @@ func (s *Server) routes() {
 	// The dashboard (view + search) is public - no login needed.
 	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
 	s.mux.HandleFunc("POST /kkt/{id}/delete", s.requireAuth(s.handleDeleteKKT))
+	s.mux.HandleFunc("GET /kkt/{id}/edit", s.requireAuth(s.handleEditKKTForm))
+	s.mux.HandleFunc("POST /kkt/{id}/edit", s.requireAuth(s.handleEditKKTSubmit))
 
 	s.mux.HandleFunc("POST /upload", s.requireAuth(s.handleUploadSubmit))
 

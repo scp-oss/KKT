@@ -92,3 +92,65 @@ func (s *Server) handleDeleteKKT(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
+
+func (s *Server) handleEditKKTForm(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	k, err := s.store.GetKKT(id)
+	if err != nil {
+		http.Error(w, "запись не найдена", http.StatusNotFound)
+		return
+	}
+	s.render(w, "edit_kkt.html", map[string]any{"KKT": k})
+}
+
+func (s *Server) handleEditKKTSubmit(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad id", http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	k := db.KKT{
+		ID:           id,
+		Organization: strings.TrimSpace(r.FormValue("organization")),
+		RegNumber:    strings.TrimSpace(r.FormValue("reg_number")),
+		FNNumber:     strings.TrimSpace(r.FormValue("fn_number")),
+		SerialNumber: strings.TrimSpace(r.FormValue("serial_number")),
+		Address:      strings.TrimSpace(r.FormValue("address")),
+		Model:        strings.TrimSpace(r.FormValue("model")),
+		OFDEndDate:   strings.TrimSpace(r.FormValue("ofd_end_date")),
+		FNEndDate:    strings.TrimSpace(r.FormValue("fn_end_date")),
+	}
+
+	if k.SerialNumber == "" {
+		s.render(w, "edit_kkt.html", map[string]any{"KKT": k, "Error": "Заводской номер ККТ обязателен"})
+		return
+	}
+	for _, d := range []struct{ label, value string }{{"Дата окончания услуг (ОФД)", k.OFDEndDate}, {"Дата окончания срока ФН", k.FNEndDate}} {
+		if d.value == "" {
+			continue
+		}
+		if _, err := time.Parse("2006-01-02", d.value); err != nil {
+			s.render(w, "edit_kkt.html", map[string]any{"KKT": k, "Error": d.label + ": неверный формат даты"})
+			return
+		}
+	}
+
+	if err := s.store.UpdateKKT(id, k); err != nil {
+		msg := "Ошибка сохранения: " + err.Error()
+		if strings.Contains(err.Error(), "UNIQUE constraint") {
+			msg = "ККТ с таким заводским номером уже есть в реестре"
+		}
+		s.render(w, "edit_kkt.html", map[string]any{"KKT": k, "Error": msg})
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}

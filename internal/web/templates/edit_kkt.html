@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Изменить ККТ — Мониторинг ККТ</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="topbar">
+	<h1>Мониторинг ККТ</h1>
+	<nav>
+		<a href="/">Реестр</a>
+		<a href="/settings">Настройки</a>
+		<form class="inline" method="post" action="/logout"><a href="#" onclick="this.closest('form').submit();return false;">Выход</a></form>
+	</nav>
+</div>
+<div class="container">
+	<div class="card" style="max-width:640px">
+		<h2>Изменить запись ККТ</h2>
+		<p class="hint">Правьте вручную, если автоматический разбор CSV не смог заполнить поле (например, адрес
+			обрезан в самом исходном файле) или в данные закралась ошибка.</p>
+
+		{{if .Error}}<div class="alert error">{{.Error}}</div>{{end}}
+
+		<form method="post" action="/kkt/{{.KKT.ID}}/edit">
+			<div class="grid-2">
+				<div>
+					<label for="organization">Организация</label>
+					<input type="text" id="organization" name="organization" value="{{.KKT.Organization}}">
+				</div>
+				<div>
+					<label for="model">Модель ККТ</label>
+					<input type="text" id="model" name="model" value="{{.KKT.Model}}">
+				</div>
+			</div>
+
+			<div class="grid-2">
+				<div>
+					<label for="serial_number">Заводской номер ККТ</label>
+					<input type="text" id="serial_number" name="serial_number" value="{{.KKT.SerialNumber}}" required>
+				</div>
+				<div>
+					<label for="reg_number">Регистрационный номер ККТ</label>
+					<input type="text" id="reg_number" name="reg_number" value="{{.KKT.RegNumber}}">
+				</div>
+			</div>
+
+			<label for="fn_number">Заводской номер ФН</label>
+			<input type="text" id="fn_number" name="fn_number" value="{{.KKT.FNNumber}}">
+
+			<label for="address">Адрес расчетов</label>
+			<input type="text" id="address" name="address" value="{{.KKT.Address}}" placeholder="г Город, ул Улица, д. N">
+
+			<div class="grid-2">
+				<div>
+					<label for="ofd_end_date">Дата окончания услуг (ОФД)</label>
+					<input type="date" id="ofd_end_date" name="ofd_end_date" value="{{.KKT.OFDEndDate}}">
+				</div>
+				<div>
+					<label for="fn_end_date">Дата окончания срока ФН</label>
+					<input type="date" id="fn_end_date" name="fn_end_date" value="{{.KKT.FNEndDate}}">
+				</div>
+			</div>
+
+			<button class="btn" type="submit">Сохранить</button>
+			<a class="btn secondary" href="/">Отмена</a>
+		</form>
+	</div>
+</div>
+</body>
+</html>

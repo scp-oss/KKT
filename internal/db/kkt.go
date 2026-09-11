@@ -76,6 +76,26 @@ func (d *DB) DeleteKKT(id int64) error {
 	return err
 }
 
+// GetKKT fetches a single record by id, for pre-filling the edit form.
+func (d *DB) GetKKT(id int64) (KKT, error) {
+	var k KKT
+	err := d.QueryRow(`SELECT id, serial_number, organization, reg_number, fn_number, address, model, ofd_end_date, fn_end_date, created_at, updated_at
+		FROM kkt WHERE id = ?`, id).
+		Scan(&k.ID, &k.SerialNumber, &k.Organization, &k.RegNumber, &k.FNNumber, &k.Address, &k.Model, &k.OFDEndDate, &k.FNEndDate, &k.CreatedAt, &k.UpdatedAt)
+	return k, err
+}
+
+// UpdateKKT overwrites every editable field of the record with the given id -
+// used for manual corrections when a value the CSV import produced (most
+// often the address) is wrong or, as with a truncated source row, missing
+// entirely.
+func (d *DB) UpdateKKT(id int64, k KKT) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := d.Exec(`UPDATE kkt SET serial_number=?, organization=?, reg_number=?, fn_number=?, address=?, model=?, ofd_end_date=?, fn_end_date=?, updated_at=? WHERE id=?`,
+		k.SerialNumber, k.Organization, k.RegNumber, k.FNNumber, k.Address, k.Model, k.OFDEndDate, k.FNEndDate, now, id)
+	return err
+}
+
 func (d *DB) CountKKT() (int, error) {
 	var n int
 	err := d.QueryRow(`SELECT COUNT(*) FROM kkt`).Scan(&n)
