@@ -63,7 +63,7 @@ func (s *Scheduler) Run(ctx context.Context) {
 func (s *Scheduler) nextFireTime() time.Time {
 	time1, time2, err := s.store.GetPollSchedule()
 	if err != nil {
-		log.Printf("notify: чтение расписания опроса: %v", err)
+		log.Printf("notify: чтение расписания уведомлений: %v", err)
 		time1, time2 = "09:00", ""
 	}
 

@@ -1,6 +1,10 @@
 package telegram
 
-import "testing"
+import (
+	"testing"
+
+	"kkt-monitor/internal/db"
+)
 
 func TestParseSocks5(t *testing.T) {
 	cases := []struct {
@@ -69,6 +73,80 @@ func TestParseSocks5(t *testing.T) {
 			}
 			if auth.User != c.wantUser || auth.Password != c.wantPass {
 				t.Errorf("auth = %+v, want User=%q Password=%q", auth, c.wantUser, c.wantPass)
+			}
+		})
+	}
+}
+
+func TestNormalizeBaseURL(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"example.tld", "https://example.tld"},
+		{"https://example.tld", "https://example.tld"},
+		{"https://example.tld/", "https://example.tld"},
+		{"  example.tld  ", "https://example.tld"},
+		{"http://example.tld", "http://example.tld"},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := normalizeBaseURL(c.in); got != c.want {
+			t.Errorf("normalizeBaseURL(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestEndpoint(t *testing.T) {
+	cases := []struct {
+		name     string
+		settings db.BotSettings
+		want     string
+		wantErr  bool
+	}{
+		{
+			name:     "direct",
+			settings: db.BotSettings{Mode: db.ModeDirect, Token: "123:ABC"},
+			want:     "https://api.telegram.org/bot123:ABC/sendMessage",
+		},
+		{
+			name:     "socks5 still talks to api.telegram.org",
+			settings: db.BotSettings{Mode: db.ModeSocks5, Token: "123:ABC"},
+			want:     "https://api.telegram.org/bot123:ABC/sendMessage",
+		},
+		{
+			name:     "relay with auth key, bare domain",
+			settings: db.BotSettings{Mode: db.ModeRelay, Token: "123:ABC", RelayBaseURL: "example.tld", AuthKey: "secret"},
+			want:     "https://example.tld/bot123:ABC/sendMessage?auth=secret",
+		},
+		{
+			name:     "relay without auth key",
+			settings: db.BotSettings{Mode: db.ModeRelay, Token: "123:ABC", RelayBaseURL: "https://example.tld/"},
+			want:     "https://example.tld/bot123:ABC/sendMessage",
+		},
+		{
+			name:     "relay missing base url",
+			settings: db.BotSettings{Mode: db.ModeRelay, Token: "123:ABC"},
+			wantErr:  true,
+		},
+		{
+			name:     "missing token",
+			settings: db.BotSettings{Mode: db.ModeDirect},
+			wantErr:  true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := New(c.settings)
+			got, err := s.endpoint()
+			if c.wantErr {
+				if err == nil {
+					t.Fatalf("endpoint(): expected error, got %q", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("endpoint(): unexpected error: %v", err)
+			}
+			if got != c.want {
+				t.Errorf("endpoint() = %q, want %q", got, c.want)
 			}
 		})
 	}

@@ -8,18 +8,18 @@ const (
 )
 
 // BotSettings holds the Telegram delivery configuration. Secrets (Token, AuthKey,
-// RelayURLTemplate, Socks5URL) are stored server-side only and are never re-rendered
+// RelayBaseURL, Socks5URL) are stored server-side only and are never re-rendered
 // into HTML once set — the settings form always shows them blank.
 type BotSettings struct {
-	Mode             string // ModeDirect, ModeSocks5 or ModeRelay
-	Token            string
-	AuthKey          string // used by the relay endpoint, e.g. ?auth=...
-	RelayURLTemplate string // must contain {TOKEN}; may contain {AUTH_KEY}
-	Socks5URL        string // e.g. socks5://user:pass@host:1080
+	Mode         string // ModeDirect, ModeSocks5 or ModeRelay
+	Token        string
+	AuthKey      string // relay's ?auth= query parameter, if it needs one
+	RelayBaseURL string // just the domain, e.g. "https://example.tld" - the /bot{TOKEN}/sendMessage?auth={AUTH_KEY} path is appended automatically
+	Socks5URL    string // e.g. socks5://user:pass@host:1080
 }
 
 var settingsKeys = []string{
-	"bot_mode", "bot_token", "bot_auth_key", "bot_relay_url_template", "bot_socks5_url",
+	"bot_mode", "bot_token", "bot_auth_key", "bot_relay_base_url", "bot_socks5_url",
 }
 
 func (d *DB) GetSetting(key string) (string, error) {
@@ -47,11 +47,11 @@ func (d *DB) GetBotSettings() (BotSettings, error) {
 		vals[k] = v
 	}
 	s := BotSettings{
-		Mode:             vals["bot_mode"],
-		Token:            vals["bot_token"],
-		AuthKey:          vals["bot_auth_key"],
-		RelayURLTemplate: vals["bot_relay_url_template"],
-		Socks5URL:        vals["bot_socks5_url"],
+		Mode:         vals["bot_mode"],
+		Token:        vals["bot_token"],
+		AuthKey:      vals["bot_auth_key"],
+		RelayBaseURL: vals["bot_relay_base_url"],
+		Socks5URL:    vals["bot_socks5_url"],
 	}
 	switch s.Mode {
 	case "":
@@ -65,15 +65,15 @@ func (d *DB) GetBotSettings() (BotSettings, error) {
 // SaveBotSettings persists non-empty fields. Blank secret fields are left
 // untouched so the settings form can be submitted without re-typing secrets
 // that shouldn't change.
-func (d *DB) SaveBotSettings(mode string, token, authKey, relayURL, socks5URL *string) error {
+func (d *DB) SaveBotSettings(mode string, token, authKey, relayBaseURL, socks5URL *string) error {
 	if err := d.SetSetting("bot_mode", mode); err != nil {
 		return err
 	}
 	for key, val := range map[string]*string{
-		"bot_token":              token,
-		"bot_auth_key":           authKey,
-		"bot_relay_url_template": relayURL,
-		"bot_socks5_url":         socks5URL,
+		"bot_token":          token,
+		"bot_auth_key":       authKey,
+		"bot_relay_base_url": relayBaseURL,
+		"bot_socks5_url":     socks5URL,
 	} {
 		if val != nil && *val != "" {
 			if err := d.SetSetting(key, *val); err != nil {

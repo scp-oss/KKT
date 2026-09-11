@@ -18,7 +18,7 @@ import (
 	"kkt-monitor/internal/db"
 )
 
-const defaultDirectURLTemplate = "https://api.telegram.org/bot{TOKEN}/sendMessage"
+const directBaseURL = "https://api.telegram.org"
 
 // Sender sends messages using the given bot settings.
 type Sender struct {
@@ -74,22 +74,42 @@ func parseSocks5(raw string) (addr string, auth *proxy.Auth, err error) {
 	return u.Host, auth, nil
 }
 
+// endpoint builds the sendMessage URL. Every relay that mirrors the Bot API
+// exposes the same /bot{TOKEN}/sendMessage path Telegram itself uses, so the
+// admin only supplies the base domain - not the whole URL - for relay mode.
 func (s *Sender) endpoint() (string, error) {
 	if s.settings.Token == "" {
 		return "", fmt.Errorf("не задан токен бота")
 	}
 
-	tmpl := defaultDirectURLTemplate
+	base := directBaseURL
 	if s.settings.Mode == db.ModeRelay {
-		if s.settings.RelayURLTemplate == "" {
+		base = normalizeBaseURL(s.settings.RelayBaseURL)
+		if base == "" {
 			return "", fmt.Errorf("не задан адрес relay-сервера")
 		}
-		tmpl = s.settings.RelayURLTemplate
 	}
 
-	endpoint := strings.ReplaceAll(tmpl, "{TOKEN}", url.PathEscape(s.settings.Token))
-	endpoint = strings.ReplaceAll(endpoint, "{AUTH_KEY}", url.QueryEscape(s.settings.AuthKey))
+	endpoint := base + "/bot" + url.PathEscape(s.settings.Token) + "/sendMessage"
+	if s.settings.Mode == db.ModeRelay && s.settings.AuthKey != "" {
+		endpoint += "?auth=" + url.QueryEscape(s.settings.AuthKey)
+	}
 	return endpoint, nil
+}
+
+// normalizeBaseURL accepts a bare domain ("example.tld") or a full base URL
+// ("https://example.tld/") and returns "https://example.tld" - a scheme, no
+// trailing slash.
+func normalizeBaseURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	raw = strings.TrimRight(raw, "/")
+	if raw == "" {
+		return ""
+	}
+	if !strings.Contains(raw, "://") {
+		raw = "https://" + raw
+	}
+	return raw
 }
 
 // Send delivers text to a single chat id.

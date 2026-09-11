@@ -49,22 +49,23 @@
 	{{if .Error}}<div class="alert error">{{.Error}}</div>{{end}}
 
 	<div class="card">
-		<h2>Расписание опроса</h2>
+		<h2>Расписание уведомлений</h2>
 		<form method="post" action="/settings/bot">
 			<div class="grid-2">
 				<div>
-					<label for="poll_time_1">Время опроса 1</label>
+					<label for="poll_time_1">Время отправки 1</label>
 					<input type="text" id="poll_time_1" name="poll_time_1" value="{{.PollTime1}}" placeholder="09:00">
 				</div>
 				<div>
-					<label for="poll_time_2">Время опроса 2 (необязательно)</label>
+					<label for="poll_time_2">Время отправки 2 (необязательно)</label>
 					<input type="text" id="poll_time_2" name="poll_time_2" value="{{.PollTime2}}" placeholder="21:00">
 				</div>
 			</div>
 			<p class="hint">
-				Формат ЧЧ:ММ, время сервера. Оставьте поле 2 пустым, если опрос нужен раз в сутки.
+				Формат ЧЧ:ММ, время сервера — в это время бот проверит реестр и разошлёт уведомления.
+				Оставьте поле 2 пустым, если отправка нужна раз в сутки.
 				Уведомления придут за {{range $i, $d := .Thresholds}}{{if $i}}, {{end}}{{$d}}{{end}} дн.
-				до окончания срока ФН и до окончания оказания услуг (ОФД). Бот проверяет эти настройки
+				до окончания срока ФН и до окончания оказания услуг (ОФД). Настройки читаются заново
 				при каждой отправке — перезапуск не требуется.
 			</p>
 
@@ -87,12 +88,12 @@
 			</div>
 
 			<div id="relay-fields" class="mode-fields">
-				<label for="relay_url">Адрес relay-сервера {{if .RelayURLSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
-				<input type="password" id="relay_url" name="relay_url" placeholder="напр. https://example.tld/bot{TOKEN}/sendMessage?auth={AUTH_KEY}" autocomplete="off">
+				<label for="relay_base_url">Адрес relay-сервера {{if .RelayBaseURLSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+				<input type="password" id="relay_base_url" name="relay_base_url" placeholder="напр. example.tld" autocomplete="off">
+				<p class="hint">Только домен — путь /bot{TOKEN}/sendMessage?auth={AUTH_KEY} бот подставит сам.</p>
 
 				<label for="auth_key">Ключ авторизации relay-сервера (auth) {{if .AuthKeySet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
 				<input type="password" id="auth_key" name="auth_key" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
-				<p class="hint">Итоговый запрос: {relay}/bot{token}/sendMessage?auth={ключ}</p>
 			</div>
 
 			<button class="btn" type="submit">Сохранить</button>

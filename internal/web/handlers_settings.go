@@ -37,21 +37,21 @@ func (s *Server) renderSettings(w http.ResponseWriter, extra map[string]any) {
 	}
 	pollTime1, pollTime2, err := s.store.GetPollSchedule()
 	if err != nil {
-		http.Error(w, "ошибка чтения расписания опроса", http.StatusInternalServerError)
+		http.Error(w, "ошибка чтения расписания уведомлений", http.StatusInternalServerError)
 		return
 	}
 
 	data := map[string]any{
-		"Mode":          settings.Mode,
-		"TokenSet":      settings.Token != "",
-		"AuthKeySet":    settings.AuthKey != "",
-		"RelayURLSet":   settings.RelayURLTemplate != "",
-		"Socks5URLSet":  settings.Socks5URL != "",
-		"PollTime1":     pollTime1,
-		"PollTime2":     pollTime2,
-		"Recipients":    recipients,
-		"Organizations": organizations,
-		"Thresholds":    notify.Thresholds,
+		"Mode":            settings.Mode,
+		"TokenSet":        settings.Token != "",
+		"AuthKeySet":      settings.AuthKey != "",
+		"RelayBaseURLSet": settings.RelayBaseURL != "",
+		"Socks5URLSet":    settings.Socks5URL != "",
+		"PollTime1":       pollTime1,
+		"PollTime2":       pollTime2,
+		"Recipients":      recipients,
+		"Organizations":   organizations,
+		"Thresholds":      notify.Thresholds,
 	}
 	for k, v := range extra {
 		data[k] = v
@@ -72,32 +72,32 @@ func (s *Server) handleSettingsBotSubmit(w http.ResponseWriter, r *http.Request)
 		mode = db.ModeDirect
 	}
 
-	pollTime1 := strings.TrimSpace(r.FormValue("poll_time_1"))
-	if pollTime1 == "" {
-		pollTime1 = "09:00"
+	sendTime1 := strings.TrimSpace(r.FormValue("poll_time_1"))
+	if sendTime1 == "" {
+		sendTime1 = "09:00"
 	}
-	pollTime2 := strings.TrimSpace(r.FormValue("poll_time_2"))
-	if _, err := time.Parse("15:04", pollTime1); err != nil {
-		s.renderSettings(w, map[string]any{"Error": "Время опроса 1: неверный формат, ожидается ЧЧ:ММ"})
+	sendTime2 := strings.TrimSpace(r.FormValue("poll_time_2"))
+	if _, err := time.Parse("15:04", sendTime1); err != nil {
+		s.renderSettings(w, map[string]any{"Error": "Время отправки 1: неверный формат, ожидается ЧЧ:ММ"})
 		return
 	}
-	if pollTime2 != "" {
-		if _, err := time.Parse("15:04", pollTime2); err != nil {
-			s.renderSettings(w, map[string]any{"Error": "Время опроса 2: неверный формат, ожидается ЧЧ:ММ"})
+	if sendTime2 != "" {
+		if _, err := time.Parse("15:04", sendTime2); err != nil {
+			s.renderSettings(w, map[string]any{"Error": "Время отправки 2: неверный формат, ожидается ЧЧ:ММ"})
 			return
 		}
 	}
 
 	token := optionalField(r.FormValue("token"))
 	authKey := optionalField(r.FormValue("auth_key"))
-	relayURL := optionalField(r.FormValue("relay_url"))
+	relayBaseURL := optionalField(r.FormValue("relay_base_url"))
 	socks5URL := optionalField(r.FormValue("socks5_url"))
 
-	if err := s.store.SetPollSchedule(pollTime1, pollTime2); err != nil {
+	if err := s.store.SetPollSchedule(sendTime1, sendTime2); err != nil {
 		s.renderSettings(w, map[string]any{"Error": "Ошибка сохранения расписания: " + err.Error()})
 		return
 	}
-	if err := s.store.SaveBotSettings(mode, token, authKey, relayURL, socks5URL); err != nil {
+	if err := s.store.SaveBotSettings(mode, token, authKey, relayBaseURL, socks5URL); err != nil {
 		s.renderSettings(w, map[string]any{"Error": "Ошибка сохранения настроек: " + err.Error()})
 		return
 	}
