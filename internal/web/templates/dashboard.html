@@ -14,8 +14,10 @@
 		{{if .IsAdmin}}
 		<a href="/upload">Загрузка CSV</a>
 		<a href="/settings">Настройки</a>
-		{{end}}
 		<form class="inline" method="post" action="/logout"><a href="#" onclick="this.closest('form').submit();return false;">Выход</a></form>
+		{{else}}
+		<a href="/login">Войти</a>
+		{{end}}
 	</nav>
 </div>
 <div class="container">

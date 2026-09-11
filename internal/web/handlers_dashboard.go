@@ -76,7 +76,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		"Total":        total,
 		"ExpiringSoon": expiringSoon,
 		"Query":        query,
-		"IsAdmin":      roleFromContext(r) == db.RoleAdmin,
+		"IsAdmin":      s.isAuthenticated(r),
 	})
 }
 

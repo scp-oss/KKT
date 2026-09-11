@@ -11,13 +11,10 @@ type Config struct {
 	ListenAddr string
 	// DBPath is the path to the SQLite database file.
 	DBPath string
-	// AdminPassword grants full access: dashboard, CSV upload, deleting
-	// records, and bot/recipient settings.
+	// AdminPassword guards every write action: CSV upload, deleting records,
+	// and bot/recipient settings. The dashboard itself (view + search) is
+	// public and needs no password.
 	AdminPassword string
-	// ViewerPassword, if set, grants read-only access to the dashboard only
-	// (no upload, no delete, no settings). Leave unset to disable the
-	// viewer login entirely.
-	ViewerPassword string
 	// CookieSecure controls the Secure flag on session cookies. Browsers
 	// silently drop a Secure cookie on a plain HTTP connection, which would
 	// make login look like it "does nothing" (the session cookie never
@@ -37,11 +34,10 @@ func Load() Config {
 	}
 
 	cfg := Config{
-		ListenAddr:     listenAddr,
-		DBPath:         getEnv("DB_PATH", "data/kkt.db"),
-		AdminPassword:  getEnv("ADMIN_PASSWORD", ""),
-		ViewerPassword: getEnv("VIEWER_PASSWORD", ""),
-		CookieSecure:   getEnvBool("COOKIE_SECURE", false),
+		ListenAddr:    listenAddr,
+		DBPath:        getEnv("DB_PATH", "data/kkt.db"),
+		AdminPassword: getEnv("ADMIN_PASSWORD", ""),
+		CookieSecure:  getEnvBool("COOKIE_SECURE", false),
 	}
 	return cfg
 }

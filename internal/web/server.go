@@ -1,5 +1,5 @@
-// Package web implements the password-protected HTTP UI: dashboard, CSV
-// upload, and Telegram bot settings.
+// Package web implements the HTTP UI: a public dashboard, and a
+// password-protected CSV upload / Telegram bot settings.
 package web
 
 import (
@@ -43,18 +43,19 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /login", s.handleLoginSubmit)
 	s.mux.HandleFunc("POST /logout", s.requireAuth(s.handleLogout))
 
-	s.mux.HandleFunc("GET /{$}", s.requireAuth(s.handleDashboard))
-	s.mux.HandleFunc("POST /kkt/{id}/delete", s.requireAdmin(s.handleDeleteKKT))
+	// The dashboard (view + search) is public - no login needed.
+	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
+	s.mux.HandleFunc("POST /kkt/{id}/delete", s.requireAuth(s.handleDeleteKKT))
 
-	s.mux.HandleFunc("GET /upload", s.requireAdmin(s.handleUploadForm))
-	s.mux.HandleFunc("POST /upload", s.requireAdmin(s.handleUploadSubmit))
+	s.mux.HandleFunc("GET /upload", s.requireAuth(s.handleUploadForm))
+	s.mux.HandleFunc("POST /upload", s.requireAuth(s.handleUploadSubmit))
 
-	s.mux.HandleFunc("GET /settings", s.requireAdmin(s.handleSettingsForm))
-	s.mux.HandleFunc("POST /settings/bot", s.requireAdmin(s.handleSettingsBotSubmit))
-	s.mux.HandleFunc("POST /settings/recipients/add", s.requireAdmin(s.handleRecipientAdd))
-	s.mux.HandleFunc("POST /settings/recipients/{id}/delete", s.requireAdmin(s.handleRecipientDelete))
-	s.mux.HandleFunc("POST /settings/recipients/{id}/toggle", s.requireAdmin(s.handleRecipientToggle))
-	s.mux.HandleFunc("POST /settings/test", s.requireAdmin(s.handleSettingsTest))
+	s.mux.HandleFunc("GET /settings", s.requireAuth(s.handleSettingsForm))
+	s.mux.HandleFunc("POST /settings/bot", s.requireAuth(s.handleSettingsBotSubmit))
+	s.mux.HandleFunc("POST /settings/recipients/add", s.requireAuth(s.handleRecipientAdd))
+	s.mux.HandleFunc("POST /settings/recipients/{id}/delete", s.requireAuth(s.handleRecipientDelete))
+	s.mux.HandleFunc("POST /settings/recipients/{id}/toggle", s.requireAuth(s.handleRecipientToggle))
+	s.mux.HandleFunc("POST /settings/test", s.requireAuth(s.handleSettingsTest))
 }
 
 func (s *Server) render(w http.ResponseWriter, name string, data any) {
