@@ -43,9 +43,9 @@ func (s *Server) renderSettings(w http.ResponseWriter, extra map[string]any) {
 
 	data := map[string]any{
 		"Mode":                settings.Mode,
-		"TokenPreview":        maskPreview(settings.Token, 8),
+		"TokenPreview":        maskTokenPreview(settings.Token, 8),
 		"AuthKeyPreview":      maskFull(settings.AuthKey),
-		"RelayBaseURLPreview": maskPreview(settings.RelayBaseURL, 6),
+		"RelayBaseURLPreview": maskURLPreview(settings.RelayBaseURL, 8),
 		"Socks5URLPreview":    maskFull(settings.Socks5URL),
 		"PollTime1":           pollTime1,
 		"PollTime2":           pollTime2,

@@ -2,7 +2,7 @@ package web
 
 import "testing"
 
-func TestMaskPreview(t *testing.T) {
+func TestMaskTokenPreview(t *testing.T) {
 	cases := []struct {
 		name   string
 		secret string
@@ -21,14 +21,42 @@ func TestMaskPreview(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := maskPreview(c.secret, c.prefix)
+			got := maskTokenPreview(c.secret, c.prefix)
 			if got != c.want {
-				t.Errorf("maskPreview(%q, %d) = %q, want %q", c.secret, c.prefix, got, c.want)
+				t.Errorf("maskTokenPreview(%q, %d) = %q, want %q", c.secret, c.prefix, got, c.want)
 			}
-			// Never leak more than the intended prefix in plain text: the
-			// mask suffix must not itself look like part of the secret.
-			if got != "" && got != c.want {
-				t.Errorf("unexpected output shape: %q", got)
+		})
+	}
+}
+
+func TestMaskURLPreview(t *testing.T) {
+	cases := []struct {
+		name   string
+		url    string
+		prefix int
+		want   string
+	}{
+		{"empty", "", 8, ""},
+		{
+			"https scheme is skipped, not counted toward the prefix",
+			"https://red-domage.cc.cd",
+			8,
+			"red-doma" + maskDots,
+		},
+		{
+			"http scheme is skipped too",
+			"http://example.tld",
+			6,
+			"exampl" + maskDots,
+		},
+		{"no scheme at all", "example.tld", 7, "example" + maskDots},
+		{"host shorter than prefix shows all of it", "ex.tld", 8, "ex.tld" + maskDots},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := maskURLPreview(c.url, c.prefix)
+			if got != c.want {
+				t.Errorf("maskURLPreview(%q, %d) = %q, want %q", c.url, c.prefix, got, c.want)
 			}
 		})
 	}

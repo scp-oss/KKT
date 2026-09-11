@@ -4,13 +4,12 @@ import "strings"
 
 const maskDots = "••••••••"
 
-// maskPreview shows a short, recognizable prefix of a secret (e.g. a bot
-// token's numeric id) followed by a fixed run of mask characters, so an
-// admin can tell which value is configured without the page ever holding
-// the full secret. For a Telegram-style "<id>:<secret>" token the prefix
-// extends a couple of characters past the colon; otherwise it's a flat
-// character count. The fixed-length mask never reveals the real length.
-func maskPreview(secret string, plainPrefix int) string {
+// maskTokenPreview shows a short, recognizable prefix of a Telegram-style
+// "<bot id>:<secret>" token (the id isn't sensitive on its own) followed by
+// a fixed run of mask characters, so an admin can tell which bot is
+// configured without the page ever holding the full secret. The fixed
+// length mask never reveals the real length.
+func maskTokenPreview(secret string, plainPrefix int) string {
 	if secret == "" {
 		return ""
 	}
@@ -19,6 +18,24 @@ func maskPreview(secret string, plainPrefix int) string {
 		n = i + 3
 	}
 	runes := []rune(secret)
+	if n > len(runes) {
+		n = len(runes)
+	}
+	return string(runes[:n]) + maskDots
+}
+
+// maskURLPreview shows the first few characters of a URL's host - skipping
+// past a leading "http://"/"https://" scheme first, since that's not
+// specific to the actual site and would otherwise eat the whole preview
+// (e.g. "https://" is 8 characters on its own) - followed by a fixed run of
+// mask characters.
+func maskURLPreview(url string, plainPrefix int) string {
+	if url == "" {
+		return ""
+	}
+	host := strings.TrimPrefix(strings.TrimPrefix(url, "https://"), "http://")
+	runes := []rune(host)
+	n := plainPrefix
 	if n > len(runes) {
 		n = len(runes)
 	}
