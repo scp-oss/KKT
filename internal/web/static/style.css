@@ -97,6 +97,20 @@ tbody tr:hover td:first-child { background: #212f45; }
 .badge.danger { background: rgba(239,68,68,.15); color: var(--danger); }
 .badge.none { background: rgba(148,163,184,.15); color: var(--muted); }
 
+/* A saved secret's masked preview next to its label - looks like something
+   is actually configured (unlike a plain "задан" badge) without the page
+   ever holding the real value. */
+.secret-preview {
+	display: inline-block;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 12px;
+	background: rgba(56,189,248,.1);
+	color: var(--accent);
+	padding: 2px 8px;
+	border-radius: 4px;
+	letter-spacing: .02em;
+}
+
 .stats { display: flex; gap: 16px; margin-bottom: 20px; }
 .stat { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; }
 .stat .num { font-size: 28px; font-weight: 700; }

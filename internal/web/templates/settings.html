@@ -69,7 +69,7 @@
 				при каждой отправке — перезапуск не требуется.
 			</p>
 
-			<label for="token">Токен Telegram-бота {{if .TokenSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+			<label for="token">Токен Telegram-бота {{if .TokenPreview}}<code class="secret-preview">{{.TokenPreview}}</code>{{else}}<span class="badge none">не задан</span>{{end}}</label>
 			<input type="password" id="token" name="token" placeholder="оставьте пустым, чтобы не менять; напр. 123456789:AAExampleExampleExampleExampleE" autocomplete="off">
 			<p class="hint">Получить токен можно у <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>.</p>
 
@@ -83,16 +83,16 @@
 				или через сторонний relay, зеркалирующий Bot API под своим доменом.</p>
 
 			<div id="socks5-fields" class="mode-fields">
-				<label for="socks5_url">Адрес SOCKS5-прокси {{if .Socks5URLSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+				<label for="socks5_url">Адрес SOCKS5-прокси {{if .Socks5URLPreview}}<code class="secret-preview">{{.Socks5URLPreview}}</code>{{else}}<span class="badge none">не задан</span>{{end}}</label>
 				<input type="password" id="socks5_url" name="socks5_url" placeholder="socks5://user:pass@host:1080" autocomplete="off">
 			</div>
 
 			<div id="relay-fields" class="mode-fields">
-				<label for="relay_base_url">Адрес relay-сервера {{if .RelayBaseURLSet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+				<label for="relay_base_url">Адрес relay-сервера {{if .RelayBaseURLPreview}}<code class="secret-preview">{{.RelayBaseURLPreview}}</code>{{else}}<span class="badge none">не задан</span>{{end}}</label>
 				<input type="password" id="relay_base_url" name="relay_base_url" placeholder="напр. example.tld" autocomplete="off">
 				<p class="hint">Только домен — путь /bot{TOKEN}/sendMessage?auth={AUTH_KEY} бот подставит сам.</p>
 
-				<label for="auth_key">Ключ авторизации relay-сервера (auth) {{if .AuthKeySet}}<span class="badge ok">задан</span>{{else}}<span class="badge none">не задан</span>{{end}}</label>
+				<label for="auth_key">Ключ авторизации relay-сервера (auth) {{if .AuthKeyPreview}}<code class="secret-preview">{{.AuthKeyPreview}}</code>{{else}}<span class="badge none">не задан</span>{{end}}</label>
 				<input type="password" id="auth_key" name="auth_key" placeholder="оставьте пустым, чтобы не менять" autocomplete="off">
 			</div>
 

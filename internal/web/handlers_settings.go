@@ -42,16 +42,16 @@ func (s *Server) renderSettings(w http.ResponseWriter, extra map[string]any) {
 	}
 
 	data := map[string]any{
-		"Mode":            settings.Mode,
-		"TokenSet":        settings.Token != "",
-		"AuthKeySet":      settings.AuthKey != "",
-		"RelayBaseURLSet": settings.RelayBaseURL != "",
-		"Socks5URLSet":    settings.Socks5URL != "",
-		"PollTime1":       pollTime1,
-		"PollTime2":       pollTime2,
-		"Recipients":      recipients,
-		"Organizations":   organizations,
-		"Thresholds":      notify.Thresholds,
+		"Mode":                settings.Mode,
+		"TokenPreview":        maskPreview(settings.Token, 8),
+		"AuthKeyPreview":      maskFull(settings.AuthKey),
+		"RelayBaseURLPreview": maskPreview(settings.RelayBaseURL, 6),
+		"Socks5URLPreview":    maskFull(settings.Socks5URL),
+		"PollTime1":           pollTime1,
+		"PollTime2":           pollTime2,
+		"Recipients":          recipients,
+		"Organizations":       organizations,
+		"Thresholds":          notify.Thresholds,
 	}
 	for k, v := range extra {
 		data[k] = v
