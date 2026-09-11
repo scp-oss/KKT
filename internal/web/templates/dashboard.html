@@ -34,17 +34,18 @@
 			{{if .Query}}<a class="btn secondary" href="/">Сбросить</a>{{end}}
 		</form>
 		{{if .Rows}}
+		<div class="table-wrap">
 		<table>
 			<thead>
 			<tr>
 				<th>Организация</th>
 				<th>Модель</th>
-				<th>Рег. номер ККТ</th>
-				<th>Зав. номер ККТ</th>
-				<th>Зав. номер ФН</th>
+				<th class="nowrap">Рег. номер ККТ</th>
+				<th class="nowrap">Зав. номер ККТ</th>
+				<th class="nowrap">Зав. номер ФН</th>
 				<th>Адрес расчетов</th>
-				<th>Оконч. услуг (ОФД)</th>
-				<th>Оконч. срока ФН</th>
+				<th class="nowrap">Оконч. услуг (ОФД)</th>
+				<th class="nowrap">Оконч. срока ФН</th>
 				{{if $.IsAdmin}}<th></th>{{end}}
 			</tr>
 			</thead>
@@ -53,17 +54,17 @@
 			<tr>
 				<td>{{.Organization}}</td>
 				<td>{{.Model}}</td>
-				<td>{{.RegNumber}}</td>
-				<td>{{.SerialNumber}}</td>
-				<td>{{.FNNumber}}</td>
-				<td>{{.Address}}</td>
-				<td>
+				<td class="nowrap">{{.RegNumber}}</td>
+				<td class="nowrap">{{.SerialNumber}}</td>
+				<td class="nowrap">{{.FNNumber}}</td>
+				<td class="nowrap">{{.Address}}</td>
+				<td class="nowrap">
 					{{if .OFD.Date}}
 						{{.OFD.Date}}
 						<div><span class="badge {{.OFD.Class}}">{{if lt .OFD.DaysLeft 0}}просрочено{{else}}{{.OFD.DaysLeft}} дн.{{end}}</span></div>
 					{{else}}<span class="badge none">нет данных</span>{{end}}
 				</td>
-				<td>
+				<td class="nowrap">
 					{{if .FN.Date}}
 						{{.FN.Date}}
 						<div><span class="badge {{.FN.Class}}">{{if lt .FN.DaysLeft 0}}просрочено{{else}}{{.FN.DaysLeft}} дн.{{end}}</span></div>
@@ -80,6 +81,7 @@
 			{{end}}
 			</tbody>
 		</table>
+		</div>
 		{{else if .Query}}
 		<p class="hint">Ничего не найдено по запросу «{{.Query}}».</p>
 		{{else if .IsAdmin}}
@@ -89,5 +91,22 @@
 		{{end}}
 	</div>
 </div>
+<script>
+(function () {
+	var input = document.querySelector('form.search input[name="q"]');
+	if (!input) return;
+	var form = input.closest('form');
+	var timer = null;
+	input.addEventListener('input', function () {
+		clearTimeout(timer);
+		timer = setTimeout(function () { form.submit(); }, 350);
+	});
+	if (input.value) {
+		input.focus();
+		var pos = input.value.length;
+		input.setSelectionRange(pos, pos);
+	}
+})();
+</script>
 </body>
 </html>
