@@ -88,3 +88,30 @@ func TestCheckFieldCatchesUpMissedThreshold(t *testing.T) {
 		t.Errorf("expected threshold 2 to fire once daysLeft dropped to 2")
 	}
 }
+
+// TestCheckFieldRetriesOnTotalSendFailure covers a second way a notification
+// used to go missing silently: if the Telegram send failed for every single
+// recipient (bot unreachable, bad token, relay down), the threshold was
+// still marked as handled and never retried. A bad db.BotSettings.Token
+// makes every send fail before any network call, standing in for that kind
+// of outage.
+func TestCheckFieldRetriesOnTotalSendFailure(t *testing.T) {
+	store := newTestDB(t)
+	failingSender := telegram.New(db.BotSettings{}) // no token configured -> every Send fails
+	today := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC)
+	endDate := today.AddDate(0, 0, 5).Format("2006-01-02") // daysLeft = 5
+	recipients := []db.Recipient{{ChatID: "12345"}}
+
+	k := db.KKT{ID: 1}
+	s := &Scheduler{store: store}
+
+	s.checkField(context.Background(), failingSender, recipients, k, "fn", "ФН", endDate, today)
+
+	notified, err := store.WasNotified(k.ID, "fn", 5, endDate)
+	if err != nil {
+		t.Fatalf("WasNotified(5): %v", err)
+	}
+	if notified {
+		t.Errorf("every recipient failed to receive it - threshold 5 must stay due for a retry, not be marked handled")
+	}
+}

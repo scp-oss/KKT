@@ -199,8 +199,15 @@ func (s *Scheduler) checkField(ctx context.Context, sender *telegram.Sender, rec
 	for _, e := range errs {
 		log.Printf("notify: ошибка отправки: %v", e)
 	}
-	// Mark as sent even on partial failure so we don't spam retries at the
-	// next poll; the next threshold crossing will try again.
+	// If every recipient failed (bot/relay unreachable, bad token, ...),
+	// don't mark this as handled - leave it due so the next poll retries
+	// automatically, instead of silently losing the notification because
+	// of a transient outage. A partial failure (some recipients got it)
+	// still marks as done: those who received it shouldn't get it again,
+	// and the ones who didn't can be re-added as recipients if needed.
+	if len(recipients) > 0 && len(errs) == len(recipients) {
+		return
+	}
 	for _, threshold := range due {
 		if err := s.store.MarkNotified(k.ID, field, threshold, endDate); err != nil {
 			log.Printf("notify: сохранение отметки об отправке: %v", err)
