@@ -164,8 +164,15 @@ func (s *Scheduler) checkField(ctx context.Context, sender *telegram.Sender, rec
 	}
 	daysLeft := int(end.Sub(today).Hours() / 24)
 
+	// due collects every threshold that's currently due (daysLeft <=
+	// threshold) and not yet notified. Using <= rather than an exact ==
+	// means a threshold that was never checked while precisely due - the
+	// service was restarted, a poll was missed, or the record was only
+	// just imported already inside the window - still gets caught here
+	// instead of being silently skipped forever.
+	var due []int
 	for _, threshold := range Thresholds {
-		if daysLeft != threshold {
+		if daysLeft > threshold {
 			continue
 		}
 		already, err := s.store.WasNotified(k.ID, field, threshold, endDate)
@@ -173,21 +180,31 @@ func (s *Scheduler) checkField(ctx context.Context, sender *telegram.Sender, rec
 			log.Printf("notify: проверка отправленных уведомлений: %v", err)
 			return
 		}
-		if already {
-			return
+		if !already {
+			due = append(due, threshold)
 		}
+	}
+	if len(due) == 0 {
+		return
+	}
 
-		text := formatMessage(k, fieldLabel, endDate, threshold)
-		errs := sender.SendToAll(ctx, recipients, text)
-		for _, e := range errs {
-			log.Printf("notify: ошибка отправки: %v", e)
-		}
-		// Mark as sent even on partial failure so we don't spam retries at
-		// the next poll; the next threshold crossing will try again.
+	// Several thresholds can end up due at once (a catch-up after
+	// downtime, or a freshly imported record already close to expiry).
+	// Sending one message per threshold would spam the same news several
+	// times over, so send a single message - stating the real days
+	// remaining, not a stale threshold number - and mark every due
+	// threshold as handled, not just the one mentioned in the text.
+	text := formatMessage(k, fieldLabel, endDate, daysLeft)
+	errs := sender.SendToAll(ctx, recipients, text)
+	for _, e := range errs {
+		log.Printf("notify: ошибка отправки: %v", e)
+	}
+	// Mark as sent even on partial failure so we don't spam retries at the
+	// next poll; the next threshold crossing will try again.
+	for _, threshold := range due {
 		if err := s.store.MarkNotified(k.ID, field, threshold, endDate); err != nil {
 			log.Printf("notify: сохранение отметки об отправке: %v", err)
 		}
-		return
 	}
 }
 
