@@ -61,6 +61,11 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ошибка чтения базы", http.StatusInternalServerError)
 		return
 	}
+	columns, err := s.store.GetVisibleColumns()
+	if err != nil {
+		http.Error(w, "ошибка чтения настроек колонок", http.StatusInternalServerError)
+		return
+	}
 
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	needle := strings.ToLower(query)
@@ -99,6 +104,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		"ExpiringSoon": expiringSoon,
 		"Query":        query,
 		"IsAdmin":      s.isAuthenticated(r),
+		"Columns":      columns,
 	})
 }
 

@@ -108,3 +108,57 @@ func (d *DB) SetPollSchedule(time1, time2 string) error {
 	}
 	return d.SetSetting("poll_time_2", time2)
 }
+
+// ColumnDef describes one toggleable column of the public dashboard table.
+type ColumnDef struct {
+	Key   string // settings-key suffix and template lookup key
+	Label string // Russian label shown next to the checkbox in Settings
+}
+
+// DashboardColumns lists every dashboard column that can be hidden, in
+// display order. The action column (Изменить/Удалить) isn't included - it's
+// only ever shown to a logged-in admin regardless of this setting.
+var DashboardColumns = []ColumnDef{
+	{"organization", "Организация"},
+	{"model", "Модель"},
+	{"reg_number", "Рег. номер ККТ"},
+	{"serial_number", "Зав. номер ККТ"},
+	{"fn_number", "Зав. номер ФН"},
+	{"address", "Адрес расчетов"},
+	{"ofd", "Оконч. услуг (ОФД)"},
+	{"fn", "Оконч. срока ФН"},
+	{"license", "ТС ПиОТ лиц."},
+}
+
+// GetVisibleColumns returns, for every column in DashboardColumns, whether it
+// should be shown on the dashboard. Unset (the common case, nothing chosen
+// yet) means visible - so the table looks the same as always until an admin
+// deliberately hides something.
+func (d *DB) GetVisibleColumns() (map[string]bool, error) {
+	out := map[string]bool{}
+	for _, c := range DashboardColumns {
+		v, err := d.GetSetting("col_" + c.Key)
+		if err != nil {
+			return nil, err
+		}
+		out[c.Key] = v != "0"
+	}
+	return out, nil
+}
+
+// SetVisibleColumns persists which columns are shown. visible should map
+// every DashboardColumns key to true/false explicitly - a key missing from
+// the map (e.g. an unchecked checkbox, which HTML forms simply omit) is
+// treated as false.
+func (d *DB) SetVisibleColumns(visible map[string]bool) error {
+	for _, c := range DashboardColumns {
+		v := "0"
+		if visible[c.Key] {
+			v = "1"
+		}
+		if err := d.SetSetting("col_"+c.Key, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}

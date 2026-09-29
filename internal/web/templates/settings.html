@@ -133,6 +133,22 @@
 	</div>
 
 	<div class="card">
+		<h2>Отображение колонок реестра</h2>
+		<p class="hint">Какие колонки показывать в общедоступном реестре ККТ. Скрытая колонка не удаляет данные — просто не выводится в таблице.</p>
+		<form method="post" action="/settings/columns">
+			<div class="checkbox-grid">
+				{{range .ColumnDefs}}
+				<label class="checkbox-label">
+					<input type="checkbox" name="col_{{.Key}}" {{if index $.Columns .Key}}checked{{end}}>
+					{{.Label}}
+				</label>
+				{{end}}
+			</div>
+			<button class="btn" type="submit">Сохранить</button>
+		</form>
+	</div>
+
+	<div class="card">
 		<h2>Получатели уведомлений в Telegram</h2>
 		<p class="hint">
 			Уведомления придут за {{range $i, $d := .Thresholds}}{{if $i}}, {{end}}{{$d}}{{end}} дн. до окончания каждого срока.

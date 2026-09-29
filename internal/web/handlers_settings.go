@@ -41,6 +41,12 @@ func (s *Server) renderSettings(w http.ResponseWriter, extra map[string]any) {
 		return
 	}
 
+	columns, err := s.store.GetVisibleColumns()
+	if err != nil {
+		http.Error(w, "ошибка чтения настроек колонок", http.StatusInternalServerError)
+		return
+	}
+
 	data := map[string]any{
 		"Mode":                settings.Mode,
 		"TokenPreview":        maskTokenPreview(settings.Token, 8),
@@ -52,6 +58,8 @@ func (s *Server) renderSettings(w http.ResponseWriter, extra map[string]any) {
 		"Recipients":          recipients,
 		"Organizations":       organizations,
 		"Thresholds":          notify.Thresholds,
+		"ColumnDefs":          db.DashboardColumns,
+		"Columns":             columns,
 	}
 	for k, v := range extra {
 		data[k] = v
@@ -266,4 +274,23 @@ func (s *Server) handleUploadLicenseSubmit(w http.ResponseWriter, r *http.Reques
 		"LicenseUploadErrors":   result.Errors,
 		"LicenseUploadNotFound": result.NotFound,
 	})
+}
+
+// handleSettingsColumnsSubmit saves which dashboard columns are shown. An
+// unchecked checkbox is simply absent from the submitted form, so every
+// column not present in r.Form is treated as hidden.
+func (s *Server) handleSettingsColumnsSubmit(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	visible := map[string]bool{}
+	for _, c := range db.DashboardColumns {
+		visible[c.Key] = r.FormValue("col_"+c.Key) != ""
+	}
+	if err := s.store.SetVisibleColumns(visible); err != nil {
+		s.renderSettings(w, map[string]any{"Error": "Ошибка сохранения настроек колонок: " + err.Error()})
+		return
+	}
+	s.renderSettings(w, map[string]any{"Success": "Настройки колонок сохранены."})
 }

@@ -36,45 +36,51 @@
 		<table>
 			<thead>
 			<tr>
-				<th>Организация</th>
-				<th>Модель</th>
-				<th>Рег. номер ККТ</th>
-				<th>Зав. номер ККТ</th>
-				<th>Зав. номер ФН</th>
-				<th>Адрес расчетов</th>
-				<th>Оконч. услуг (ОФД)</th>
-				<th>Оконч. срока ФН</th>
-				<th>ТС ПиОТ лиц.</th>
-				{{if $.IsAdmin}}<th></th>{{end}}
+				{{if index .Columns "organization"}}<th>Организация</th>{{end}}
+				{{if index .Columns "model"}}<th>Модель</th>{{end}}
+				{{if index .Columns "reg_number"}}<th>Рег. номер ККТ</th>{{end}}
+				{{if index .Columns "serial_number"}}<th>Зав. номер ККТ</th>{{end}}
+				{{if index .Columns "fn_number"}}<th>Зав. номер ФН</th>{{end}}
+				{{if index .Columns "address"}}<th>Адрес расчетов</th>{{end}}
+				{{if index .Columns "ofd"}}<th>Оконч. услуг (ОФД)</th>{{end}}
+				{{if index .Columns "fn"}}<th>Оконч. срока ФН</th>{{end}}
+				{{if index .Columns "license"}}<th>ТС ПиОТ лиц.</th>{{end}}
+				{{if .IsAdmin}}<th></th>{{end}}
 			</tr>
 			</thead>
 			<tbody>
 			{{range .Rows}}
 			<tr>
-				<td class="truncate" title="{{.Organization}}">{{.Organization}}</td>
-				<td class="truncate" title="{{.Model}}">{{.Model}}</td>
-				<td>{{.RegNumber}}</td>
-				<td>{{.SerialNumber}}</td>
-				<td>{{.FNNumber}}</td>
-				<td class="truncate wide" title="{{.Address}}">{{.Address}}</td>
+				{{if index $.Columns "organization"}}<td class="truncate" title="{{.Organization}}">{{.Organization}}</td>{{end}}
+				{{if index $.Columns "model"}}<td class="truncate" title="{{.Model}}">{{.Model}}</td>{{end}}
+				{{if index $.Columns "reg_number"}}<td>{{.RegNumber}}</td>{{end}}
+				{{if index $.Columns "serial_number"}}<td>{{.SerialNumber}}</td>{{end}}
+				{{if index $.Columns "fn_number"}}<td>{{.FNNumber}}</td>{{end}}
+				{{if index $.Columns "address"}}<td class="truncate wide" title="{{.Address}}">{{.Address}}</td>{{end}}
+				{{if index $.Columns "ofd"}}
 				<td>
 					{{if .OFD.Date}}
 						{{.OFD.Date}}
 						<div><span class="badge {{.OFD.Class}}">{{if lt .OFD.DaysLeft 0}}просрочено{{else}}{{.OFD.DaysLeft}} дн.{{end}}</span></div>
 					{{else}}<span class="badge danger">Не активирована</span>{{end}}
 				</td>
+				{{end}}
+				{{if index $.Columns "fn"}}
 				<td>
 					{{if .FN.Date}}
 						{{.FN.Date}}
 						<div><span class="badge {{.FN.Class}}">{{if lt .FN.DaysLeft 0}}просрочено{{else}}{{.FN.DaysLeft}} дн.{{end}}</span></div>
 					{{else}}<span class="badge none">нет данных</span>{{end}}
 				</td>
+				{{end}}
+				{{if index $.Columns "license"}}
 				<td>
 					{{if .License.Date}}
 						{{.License.Date}}
 						<div><span class="badge {{.License.Class}}">{{if lt .License.DaysLeft 0}}просрочено{{else}}{{.License.DaysLeft}} дн.{{end}}</span></div>
 					{{else}}<span class="badge none">нет данных</span>{{end}}
 				</td>
+				{{end}}
 				{{if $.IsAdmin}}
 				<td>
 					<a class="btn secondary small" href="/kkt/{{.ID}}/edit?q={{$.Query}}">Изменить</a>
