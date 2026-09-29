@@ -46,6 +46,34 @@
 		</form>
 	</div>
 
+	<div class="card">
+		<h2>Загрузка лицензий (ТС ПиОТ)</h2>
+		<p class="hint">Отдельная выгрузка из ПиОТ с датой окончания лицензии кассового ПО — сопоставляется
+			с уже загруженным реестром по «Заводскому номеру» (тот же ключ, что и «Заводской номер ККТ»).
+			Организация не нужна: файл только дополняет уже существующие записи, новых не создаёт.</p>
+
+		{{if .LicenseUploadSuccess}}<div class="alert success">{{.LicenseUploadSuccess}}</div>{{end}}
+		{{if .LicenseUploadError}}<div class="alert error">{{.LicenseUploadError}}</div>{{end}}
+		{{if .LicenseUploadErrors}}
+		<div class="alert error">
+			<div>Замечания при импорте:</div>
+			<ul class="errlist">{{range .LicenseUploadErrors}}<li>{{.}}</li>{{end}}</ul>
+		</div>
+		{{end}}
+		{{if .LicenseUploadNotFound}}
+		<div class="alert error">
+			<div>Не найдены в реестре (сначала загрузите основной CSV с этим заводским номером):</div>
+			<ul class="errlist">{{range .LicenseUploadNotFound}}<li>{{.}}</li>{{end}}</ul>
+		</div>
+		{{end}}
+
+		<form method="post" action="/upload-license" enctype="multipart/form-data">
+			<label for="license_file">CSV-файл ПиОТ</label>
+			<input type="file" id="license_file" name="file" accept=".csv,text/csv" required>
+			<button class="btn" type="submit">Загрузить</button>
+		</form>
+	</div>
+
 	{{if .Success}}<div class="alert success">{{.Success}}</div>{{end}}
 	{{if .Error}}<div class="alert error">{{.Error}}</div>{{end}}
 
@@ -66,8 +94,8 @@
 				Формат ЧЧ:ММ, время сервера — в это время бот проверит реестр и разошлёт уведомления.
 				Оставьте поле 2 пустым, если отправка нужна раз в сутки.
 				Уведомления придут за {{range $i, $d := .Thresholds}}{{if $i}}, {{end}}{{$d}}{{end}} дн.
-				до окончания срока ФН и до окончания оказания услуг (ОФД). Настройки читаются заново
-				при каждой отправке — перезапуск не требуется.
+				до окончания срока ФН, до окончания оказания услуг (ОФД) и до окончания лицензии (ПиОТ).
+				Настройки читаются заново при каждой отправке — перезапуск не требуется.
 			</p>
 
 			<label for="token">Токен Telegram-бота {{if .TokenPreview}}<code class="secret-preview">{{.TokenPreview}}</code>{{else}}<span class="badge none">не задан</span>{{end}}</label>

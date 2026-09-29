@@ -29,8 +29,9 @@ type dateStatus struct {
 
 type kktRow struct {
 	db.KKT
-	OFD dateStatus
-	FN  dateStatus
+	OFD     dateStatus
+	FN      dateStatus
+	License dateStatus
 }
 
 func computeStatus(dateStr string, today time.Time) dateStatus {
@@ -75,13 +76,18 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		total++
-		row := kktRow{KKT: k, OFD: computeStatus(k.OFDEndDate, today), FN: computeStatus(k.FNEndDate, today)}
+		row := kktRow{
+			KKT:     k,
+			OFD:     computeStatus(k.OFDEndDate, today),
+			FN:      computeStatus(k.FNEndDate, today),
+			License: computeStatus(k.LicenseEndDate, today),
+		}
 		if k.OFDEndDate == "" {
 			// No ОФД end date at all means no subscription was ever bought -
 			// that's more urgent than an expiry date, however close.
 			row.OFD.Class = "danger"
 		}
-		if row.OFD.Class == "danger" || row.OFD.Class == "warn" || row.FN.Class == "danger" || row.FN.Class == "warn" {
+		if row.OFD.Class == "danger" || row.OFD.Class == "warn" || row.FN.Class == "danger" || row.FN.Class == "warn" || row.License.Class == "danger" || row.License.Class == "warn" {
 			expiringSoon++
 		}
 		rows = append(rows, row)
@@ -136,22 +142,23 @@ func (s *Server) handleEditKKTSubmit(w http.ResponseWriter, r *http.Request) {
 	query := r.FormValue("q")
 
 	k := db.KKT{
-		ID:           id,
-		Organization: strings.TrimSpace(r.FormValue("organization")),
-		RegNumber:    strings.TrimSpace(r.FormValue("reg_number")),
-		FNNumber:     strings.TrimSpace(r.FormValue("fn_number")),
-		SerialNumber: strings.TrimSpace(r.FormValue("serial_number")),
-		Address:      strings.TrimSpace(r.FormValue("address")),
-		Model:        strings.TrimSpace(r.FormValue("model")),
-		OFDEndDate:   strings.TrimSpace(r.FormValue("ofd_end_date")),
-		FNEndDate:    strings.TrimSpace(r.FormValue("fn_end_date")),
+		ID:             id,
+		Organization:   strings.TrimSpace(r.FormValue("organization")),
+		RegNumber:      strings.TrimSpace(r.FormValue("reg_number")),
+		FNNumber:       strings.TrimSpace(r.FormValue("fn_number")),
+		SerialNumber:   strings.TrimSpace(r.FormValue("serial_number")),
+		Address:        strings.TrimSpace(r.FormValue("address")),
+		Model:          strings.TrimSpace(r.FormValue("model")),
+		OFDEndDate:     strings.TrimSpace(r.FormValue("ofd_end_date")),
+		FNEndDate:      strings.TrimSpace(r.FormValue("fn_end_date")),
+		LicenseEndDate: strings.TrimSpace(r.FormValue("license_end_date")),
 	}
 
 	if k.SerialNumber == "" {
 		s.render(w, "edit_kkt.html", map[string]any{"KKT": k, "Query": query, "Error": "Заводской номер ККТ обязателен"})
 		return
 	}
-	for _, d := range []struct{ label, value string }{{"Дата окончания услуг (ОФД)", k.OFDEndDate}, {"Дата окончания срока ФН", k.FNEndDate}} {
+	for _, d := range []struct{ label, value string }{{"Дата окончания услуг (ОФД)", k.OFDEndDate}, {"Дата окончания срока ФН", k.FNEndDate}, {"Дата окончания лицензии", k.LicenseEndDate}} {
 		if d.value == "" {
 			continue
 		}

@@ -44,6 +44,7 @@
 				<th>Адрес расчетов</th>
 				<th>Оконч. услуг (ОФД)</th>
 				<th>Оконч. срока ФН</th>
+				<th>Оконч. лицензии</th>
 				{{if $.IsAdmin}}<th></th>{{end}}
 			</tr>
 			</thead>
@@ -66,6 +67,12 @@
 					{{if .FN.Date}}
 						{{.FN.Date}}
 						<div><span class="badge {{.FN.Class}}">{{if lt .FN.DaysLeft 0}}просрочено{{else}}{{.FN.DaysLeft}} дн.{{end}}</span></div>
+					{{else}}<span class="badge none">нет данных</span>{{end}}
+				</td>
+				<td>
+					{{if .License.Date}}
+						{{.License.Date}}
+						<div><span class="badge {{.License.Class}}">{{if lt .License.DaysLeft 0}}просрочено{{else}}{{.License.DaysLeft}} дн.{{end}}</span></div>
 					{{else}}<span class="badge none">нет данных</span>{{end}}
 				</td>
 				{{if $.IsAdmin}}

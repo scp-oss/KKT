@@ -66,6 +66,41 @@ func TestUpsertKKTDoesNotBlankExistingFields(t *testing.T) {
 	}
 }
 
+func TestUpdateLicenseEndDate(t *testing.T) {
+	store := newTestDB(t)
+
+	if _, _, err := store.UpsertKKT(KKT{SerialNumber: "SN1", Organization: "ИП Пупкин И.В."}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	matched, err := store.UpdateLicenseEndDate("SN1", "2027-07-06")
+	if err != nil {
+		t.Fatalf("UpdateLicenseEndDate: %v", err)
+	}
+	if !matched {
+		t.Errorf("expected SN1 to be matched")
+	}
+
+	records, err := store.ListKKT()
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(records))
+	}
+	if records[0].LicenseEndDate != "2027-07-06" {
+		t.Errorf("LicenseEndDate = %q, want 2027-07-06", records[0].LicenseEndDate)
+	}
+
+	matched, err = store.UpdateLicenseEndDate("DOES-NOT-EXIST", "2027-07-06")
+	if err != nil {
+		t.Fatalf("UpdateLicenseEndDate(unmatched): %v", err)
+	}
+	if matched {
+		t.Errorf("expected no match for a serial number that doesn't exist")
+	}
+}
+
 func TestListKKTOrdersUnactivatedFirst(t *testing.T) {
 	store := newTestDB(t)
 

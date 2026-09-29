@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS kkt (
 	model         TEXT NOT NULL DEFAULT '',
 	ofd_end_date  TEXT NOT NULL DEFAULT '',
 	fn_end_date   TEXT NOT NULL DEFAULT '',
+	license_end_date TEXT NOT NULL DEFAULT '',
 	created_at    TEXT NOT NULL,
 	updated_at    TEXT NOT NULL
 );
@@ -95,6 +96,9 @@ func migrate(sqlDB *sql.DB) error {
 		return err
 	}
 	if err := addColumnIfMissing(sqlDB, "recipients", "organization", `ALTER TABLE recipients ADD COLUMN organization TEXT NOT NULL DEFAULT ''`); err != nil {
+		return err
+	}
+	if err := addColumnIfMissing(sqlDB, "kkt", "license_end_date", `ALTER TABLE kkt ADD COLUMN license_end_date TEXT NOT NULL DEFAULT ''`); err != nil {
 		return err
 	}
 	return nil

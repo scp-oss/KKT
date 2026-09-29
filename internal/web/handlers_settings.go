@@ -231,3 +231,39 @@ func (s *Server) handleUploadSubmit(w http.ResponseWriter, r *http.Request) {
 		"UploadErrors": result.Errors,
 	})
 }
+
+// handleUploadLicenseSubmit imports the separate "ТС ПиОТ" export, which
+// tracks the cash software license rather than ОФД/ФН. It only enriches
+// records that already exist (matched by "Заводской номер" = the same
+// serial number the main registry is keyed on) - the file carries no
+// organization, so it never creates new records on its own.
+func (s *Server) handleUploadLicenseSubmit(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		s.renderSettings(w, map[string]any{"LicenseUploadError": "Не удалось прочитать форму: " + err.Error()})
+		return
+	}
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		s.renderSettings(w, map[string]any{"LicenseUploadError": "Выберите CSV-файл для загрузки"})
+		return
+	}
+	defer file.Close()
+
+	result, err := csvimport.ImportLicenses(s.store, file)
+	if err != nil {
+		s.renderSettings(w, map[string]any{"LicenseUploadError": "Ошибка импорта: " + err.Error()})
+		return
+	}
+
+	msg := "Импорт завершён: обновлено " + strconv.Itoa(result.Updated) +
+		", пропущено " + strconv.Itoa(result.Skipped) + "."
+	if len(result.NotFound) > 0 {
+		msg += " Не найдено в реестре: " + strconv.Itoa(len(result.NotFound)) + "."
+	}
+	s.renderSettings(w, map[string]any{
+		"LicenseUploadSuccess":  msg,
+		"LicenseUploadErrors":   result.Errors,
+		"LicenseUploadNotFound": result.NotFound,
+	})
+}

@@ -151,6 +151,7 @@ func (s *Scheduler) checkOnce(ctx context.Context) {
 		}
 		s.checkField(ctx, sender, recipients, k, "ofd", "Дата окончания оказания услуг (ОФД)", k.OFDEndDate, today)
 		s.checkField(ctx, sender, recipients, k, "fn", "Дата окончания срока ФН", k.FNEndDate, today)
+		s.checkField(ctx, sender, recipients, k, "license", "Дата окончания лицензии", k.LicenseEndDate, today)
 	}
 }
 

@@ -1,21 +1,25 @@
 package db
 
-import "time"
+import (
+	"database/sql"
+	"time"
+)
 
 // KKT is one cash register (Контрольно-кассовая техника) record.
 // SerialNumber (Заводской номер ККТ) is the unique key every record is keyed on.
 type KKT struct {
-	ID           int64
-	Organization string // организация, к которой относится касса (одна на весь загруженный файл)
-	RegNumber    string // Регистрационный номер ККТ
-	FNNumber     string // Заводской номер ФН
-	SerialNumber string // Заводской номер ККТ (unique)
-	Address      string // Адрес расчетов
-	Model        string // Модель ККТ
-	OFDEndDate   string // Дата окончания оказания услуг (ОФД), ISO yyyy-mm-dd or ""
-	FNEndDate    string // Дата окончания срока ФН, ISO yyyy-mm-dd or ""
-	CreatedAt    string
-	UpdatedAt    string
+	ID             int64
+	Organization   string // организация, к которой относится касса (одна на весь загруженный файл)
+	RegNumber      string // Регистрационный номер ККТ
+	FNNumber       string // Заводской номер ФН
+	SerialNumber   string // Заводской номер ККТ (unique)
+	Address        string // Адрес расчетов
+	Model          string // Модель ККТ
+	OFDEndDate     string // Дата окончания оказания услуг (ОФД), ISO yyyy-mm-dd or ""
+	FNEndDate      string // Дата окончания срока ФН, ISO yyyy-mm-dd or ""
+	LicenseEndDate string // Дата окончания лицензии (из отдельной выгрузки ТС ПиОТ), ISO yyyy-mm-dd or ""
+	CreatedAt      string
+	UpdatedAt      string
 }
 
 // UpsertKKT inserts a new record or updates the existing one matched by SerialNumber.
@@ -41,6 +45,7 @@ func (d *DB) UpsertKKT(k KKT) (id int64, inserted bool, err error) {
 				model=CASE WHEN ?='' THEN model ELSE ? END,
 				ofd_end_date=CASE WHEN ?='' THEN ofd_end_date ELSE ? END,
 				fn_end_date=CASE WHEN ?='' THEN fn_end_date ELSE ? END,
+				license_end_date=CASE WHEN ?='' THEN license_end_date ELSE ? END,
 				updated_at=?
 			WHERE id=?`,
 			k.Organization,
@@ -50,15 +55,16 @@ func (d *DB) UpsertKKT(k KKT) (id int64, inserted bool, err error) {
 			k.Model, k.Model,
 			k.OFDEndDate, k.OFDEndDate,
 			k.FNEndDate, k.FNEndDate,
+			k.LicenseEndDate, k.LicenseEndDate,
 			now, existingID)
 		if err != nil {
 			return 0, false, err
 		}
 		return existingID, false, nil
 	default:
-		res, insErr := d.Exec(`INSERT INTO kkt (serial_number, organization, reg_number, fn_number, address, model, ofd_end_date, fn_end_date, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			k.SerialNumber, k.Organization, k.RegNumber, k.FNNumber, k.Address, k.Model, k.OFDEndDate, k.FNEndDate, now, now)
+		res, insErr := d.Exec(`INSERT INTO kkt (serial_number, organization, reg_number, fn_number, address, model, ofd_end_date, fn_end_date, license_end_date, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			k.SerialNumber, k.Organization, k.RegNumber, k.FNNumber, k.Address, k.Model, k.OFDEndDate, k.FNEndDate, k.LicenseEndDate, now, now)
 		if insErr != nil {
 			return 0, false, insErr
 		}
@@ -67,12 +73,36 @@ func (d *DB) UpsertKKT(k KKT) (id int64, inserted bool, err error) {
 	}
 }
 
+// UpdateLicenseEndDate sets just the license expiry date for the record
+// matched by serial number, leaving every other field untouched. Used by
+// the separate license-tracking import (a different source system, keyed
+// on the same ККТ serial number but carrying only this one field for
+// devices that must already exist in the registry). matched reports
+// whether a record with this serial number exists at all, so the caller
+// can report unmatched rows instead of silently dropping them.
+func (d *DB) UpdateLicenseEndDate(serialNumber, licenseEndDate string) (matched bool, err error) {
+	if licenseEndDate == "" {
+		var id int64
+		err = d.QueryRow(`SELECT id FROM kkt WHERE serial_number = ?`, serialNumber).Scan(&id)
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return err == nil, err
+	}
+	res, err := d.Exec(`UPDATE kkt SET license_end_date=? WHERE serial_number=?`, licenseEndDate, serialNumber)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
 // ListKKT returns every record ordered with the most urgent first: a record
 // with no ОФД end date has no active subscription at all, which ranks above
 // even an already-expired one; the rest are ordered by whichever of the two
 // expiry dates comes soonest.
 func (d *DB) ListKKT() ([]KKT, error) {
-	rows, err := d.Query(`SELECT id, serial_number, organization, reg_number, fn_number, address, model, ofd_end_date, fn_end_date, created_at, updated_at
+	rows, err := d.Query(`SELECT id, serial_number, organization, reg_number, fn_number, address, model, ofd_end_date, fn_end_date, license_end_date, created_at, updated_at
 		FROM kkt ORDER BY
 		CASE WHEN ofd_end_date = '' THEN 0 ELSE 1 END ASC,
 		MIN(
@@ -87,7 +117,7 @@ func (d *DB) ListKKT() ([]KKT, error) {
 	var out []KKT
 	for rows.Next() {
 		var k KKT
-		if err := rows.Scan(&k.ID, &k.SerialNumber, &k.Organization, &k.RegNumber, &k.FNNumber, &k.Address, &k.Model, &k.OFDEndDate, &k.FNEndDate, &k.CreatedAt, &k.UpdatedAt); err != nil {
+		if err := rows.Scan(&k.ID, &k.SerialNumber, &k.Organization, &k.RegNumber, &k.FNNumber, &k.Address, &k.Model, &k.OFDEndDate, &k.FNEndDate, &k.LicenseEndDate, &k.CreatedAt, &k.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, k)
@@ -103,9 +133,9 @@ func (d *DB) DeleteKKT(id int64) error {
 // GetKKT fetches a single record by id, for pre-filling the edit form.
 func (d *DB) GetKKT(id int64) (KKT, error) {
 	var k KKT
-	err := d.QueryRow(`SELECT id, serial_number, organization, reg_number, fn_number, address, model, ofd_end_date, fn_end_date, created_at, updated_at
+	err := d.QueryRow(`SELECT id, serial_number, organization, reg_number, fn_number, address, model, ofd_end_date, fn_end_date, license_end_date, created_at, updated_at
 		FROM kkt WHERE id = ?`, id).
-		Scan(&k.ID, &k.SerialNumber, &k.Organization, &k.RegNumber, &k.FNNumber, &k.Address, &k.Model, &k.OFDEndDate, &k.FNEndDate, &k.CreatedAt, &k.UpdatedAt)
+		Scan(&k.ID, &k.SerialNumber, &k.Organization, &k.RegNumber, &k.FNNumber, &k.Address, &k.Model, &k.OFDEndDate, &k.FNEndDate, &k.LicenseEndDate, &k.CreatedAt, &k.UpdatedAt)
 	return k, err
 }
 
@@ -115,8 +145,8 @@ func (d *DB) GetKKT(id int64) (KKT, error) {
 // entirely.
 func (d *DB) UpdateKKT(id int64, k KKT) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := d.Exec(`UPDATE kkt SET serial_number=?, organization=?, reg_number=?, fn_number=?, address=?, model=?, ofd_end_date=?, fn_end_date=?, updated_at=? WHERE id=?`,
-		k.SerialNumber, k.Organization, k.RegNumber, k.FNNumber, k.Address, k.Model, k.OFDEndDate, k.FNEndDate, now, id)
+	_, err := d.Exec(`UPDATE kkt SET serial_number=?, organization=?, reg_number=?, fn_number=?, address=?, model=?, ofd_end_date=?, fn_end_date=?, license_end_date=?, updated_at=? WHERE id=?`,
+		k.SerialNumber, k.Organization, k.RegNumber, k.FNNumber, k.Address, k.Model, k.OFDEndDate, k.FNEndDate, k.LicenseEndDate, now, id)
 	return err
 }
 

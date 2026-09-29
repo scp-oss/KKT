@@ -135,13 +135,16 @@ func isBlankRow(record []string) bool {
 	return true
 }
 
-// unwrapCell strips the Excel ="..." text-forcing wrapper, if present.
+// unwrapCell strips whichever Excel text-forcing convention the source used:
+// either the ="..." wrapper (the "Мониторинг ККТ и ФН" export), or a bare
+// leading apostrophe before a quoted numeric string (the "ТС ПиОТ" export).
 func unwrapCell(s string) string {
 	s = strings.TrimSpace(s)
 	if strings.HasPrefix(s, `="`) && strings.HasSuffix(s, `"`) && len(s) >= 3 {
 		return s[2 : len(s)-1]
 	}
-	return strings.Trim(s, `"`)
+	s = strings.Trim(s, `"`)
+	return strings.TrimPrefix(s, "'")
 }
 
 var dateLayouts = []string{
