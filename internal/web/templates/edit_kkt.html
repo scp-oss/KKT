@@ -17,7 +17,7 @@
 	</nav>
 </div>
 <div class="container">
-	<div class="card" style="max-width:640px">
+	<div class="card" style="max-width:720px">
 		<h2>Изменить запись ККТ</h2>
 		<p class="hint">Правьте вручную, если автоматический разбор CSV не смог заполнить поле (например, адрес
 			обрезан в самом исходном файле) или в данные закралась ошибка.</p>
@@ -54,7 +54,7 @@
 			<label for="address">Адрес расчетов</label>
 			<input type="text" id="address" name="address" value="{{.KKT.Address}}" placeholder="г Город, ул Улица, д. N">
 
-			<div class="grid-2">
+			<div class="grid-3">
 				<div>
 					<label for="ofd_end_date">Дата окончания услуг (ОФД)</label>
 					<input type="date" id="ofd_end_date" name="ofd_end_date" value="{{.KKT.OFDEndDate}}">
@@ -63,10 +63,11 @@
 					<label for="fn_end_date">Дата окончания срока ФН</label>
 					<input type="date" id="fn_end_date" name="fn_end_date" value="{{.KKT.FNEndDate}}">
 				</div>
+				<div>
+					<label for="license_end_date">Дата окончания лицензии (ПиОТ)</label>
+					<input type="date" id="license_end_date" name="license_end_date" value="{{.KKT.LicenseEndDate}}">
+				</div>
 			</div>
-
-			<label for="license_end_date">Дата окончания лицензии (ПиОТ)</label>
-			<input type="date" id="license_end_date" name="license_end_date" value="{{.KKT.LicenseEndDate}}">
 
 			<button class="btn" type="submit">Сохранить</button>
 			<a class="btn secondary" href="/?q={{.Query}}">Отмена</a>

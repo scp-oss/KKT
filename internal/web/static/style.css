@@ -143,6 +143,9 @@ input[type=checkbox] { margin-right: 6px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 @media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
 
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 16px; }
+@media (max-width: 760px) { .grid-3 { grid-template-columns: 1fr; } }
+
 .mode-radios { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 6px 0; }
 .radio-label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); cursor: pointer; margin: 0; }
 .radio-label input[type=radio] { margin: 0; }
